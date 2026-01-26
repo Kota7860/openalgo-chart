@@ -66,16 +66,25 @@ export const useChartSync = (
                         if (param.time) {
                             // Sync vertical position (time)
                             const targetSeries = targetWrapper.mainSeries;
+                            const targetChart = targetWrapper.chart;
 
-                            if (targetWrapper.chart.setCrosshairPosition && targetSeries) {
-                                // Set the crosshair position on the target chart
-                                // Using 0 for price since we only sync time (vertical line)
-                                targetWrapper.chart.setCrosshairPosition(0, param.time, targetSeries);
+                            if (targetChart && targetSeries && typeof targetChart.setCrosshairPosition === 'function') {
+                                try {
+                                    // Set the crosshair position on the target chart
+                                    // Using 0 for price since we only sync time (vertical line)
+                                    targetChart.setCrosshairPosition(0, param.time, targetSeries);
+                                } catch {
+                                    // Chart or series may have been disposed, ignore
+                                }
                             }
                         } else {
                             // Clear crosshair when mouse leaves source chart
-                            if (targetWrapper.chart.clearCrosshairPosition) {
-                                targetWrapper.chart.clearCrosshairPosition();
+                            if (targetWrapper.chart && typeof targetWrapper.chart.clearCrosshairPosition === 'function') {
+                                try {
+                                    targetWrapper.chart.clearCrosshairPosition();
+                                } catch {
+                                    // Chart may have been disposed, ignore
+                                }
                             }
                         }
                     });
