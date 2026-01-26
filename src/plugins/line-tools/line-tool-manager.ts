@@ -2601,7 +2601,7 @@ export class LineToolManager extends PluginBase {
         }
     };
 
-    private _addTool(tool: any, type: ToolType, skipHistory: boolean = false) {
+    private _addTool(tool: any, type: ToolType, skipHistory: boolean = false, skipCallback: boolean = false) {
         try {
             (tool as any).toolType = type;
             this._tools.push(tool);
@@ -2622,7 +2622,8 @@ export class LineToolManager extends PluginBase {
             }
 
             // Trigger callbacks for drawings change (for auto-save)
-            if (this._onDrawingsChanged) {
+            // Skip callback during imports to prevent sync loops
+            if (this._onDrawingsChanged && !skipCallback) {
                 this._onDrawingsChanged();
             }
         } catch (error) {
@@ -2798,7 +2799,13 @@ export class LineToolManager extends PluginBase {
      * @param drawings Array of drawing data objects from exportDrawings
      * @param clearExisting If true, remove all existing drawings first
      */
-    public importDrawings(drawings: any[], clearExisting: boolean = true): void {
+    /**
+     * Import drawings from saved data and recreate them on the chart
+     * @param drawings Array of drawing data objects from exportDrawings
+     * @param clearExisting If true, remove all existing drawings first
+     * @param skipCallback If true, don't trigger onDrawingsChanged (used for sync to prevent loops)
+     */
+    public importDrawings(drawings: any[], clearExisting: boolean = true, skipCallback: boolean = false): void {
         // Ensure chart is attached before proceeding
         try {
             const c = this.chart;
@@ -2837,7 +2844,8 @@ export class LineToolManager extends PluginBase {
 
                     // Attach and register
                     this.series.attachPrimitive(tool);
-                    this._addTool(tool, toolType, true); // Skip history for imports
+                    // Skip history and callback for imports to prevent sync loops
+                    this._addTool(tool, toolType, true, skipCallback);
                 }
             } catch (error) {
                 console.warn('Failed to import drawing:', drawing.type, error);

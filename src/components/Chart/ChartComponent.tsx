@@ -553,9 +553,10 @@ const ChartComponent = forwardRef<any, ChartComponentProps>(({
             return mainSeriesRef.current;
         },
         // Set drawings from external source (for sync between charts)
+        // skipCallback=true prevents triggering onDrawingsChanged to avoid sync loops
         setDrawings: (drawings: any[]) => {
             if (lineToolManagerRef.current && typeof lineToolManagerRef.current.importDrawings === 'function') {
-                lineToolManagerRef.current.importDrawings(drawings, true);
+                lineToolManagerRef.current.importDrawings(drawings, true, true);
             }
         },
         // Get current drawings
