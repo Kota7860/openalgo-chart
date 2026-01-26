@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import type { MouseEvent, MutableRefObject } from 'react';
 import styles from './ChartGrid.module.css';
 import ChartComponent from './ChartComponent';
+import { useChartSync, useDrawingSync } from './hooks';
 
 type LayoutType = '1' | '2' | '3' | '4';
 
@@ -60,6 +61,8 @@ export interface ChartGridProps {
     onAlertTriggered?: (chartId: string, symbol: string, exchange: string, event: AlertEvent) => void;
     onReplayModeChange?: (chartId: string, isActive: boolean) => void;
     onOHLCDataUpdate?: (data: unknown) => void;
+    isCrosshairSyncEnabled?: boolean;
+    isDrawingSyncEnabled?: boolean;
     [key: string]: unknown; // Additional chart props
 }
 
@@ -75,8 +78,32 @@ const ChartGrid: React.FC<ChartGridProps> = ({
     onAlertTriggered,
     onReplayModeChange,
     onOHLCDataUpdate,
+    isCrosshairSyncEnabled = true,
+    isDrawingSyncEnabled = true,
     ...chartProps
 }) => {
+    // Enable crosshair sync across all charts
+    useChartSync(chartRefs as any, charts as any, isCrosshairSyncEnabled && charts.length > 1);
+
+    // Enable drawing sync for charts with same symbol
+    const { handleDrawingsSync } = useDrawingSync({
+        chartRefs: chartRefs as any,
+        charts: charts as any
+    });
+
+    // Wrapper to handle drawing changes and sync
+    const handleDrawingsChange = useCallback((chartId: string, symbol: string, exchange: string, drawings: unknown[]) => {
+        // Call parent callback if provided
+        if (onDrawingsSync) {
+            onDrawingsSync(drawings);
+        }
+
+        // Sync drawings to other charts with same symbol
+        if (isDrawingSyncEnabled) {
+            handleDrawingsSync(chartId, symbol, exchange, drawings as any);
+        }
+    }, [onDrawingsSync, isDrawingSyncEnabled, handleDrawingsSync]);
+
     const getGridClass = (): string => {
         switch (layout) {
             case '2': return styles.grid2;
@@ -114,7 +141,7 @@ const ChartGrid: React.FC<ChartGridProps> = ({
                         exchange={chart.exchange || 'NSE'}
                         interval={chart.interval}
                         onAlertsSync={onAlertsSync ? (alerts: Alert[]) => onAlertsSync(chart.id, chart.symbol, chart.exchange || 'NSE', alerts) : undefined}
-                        onDrawingsSync={onDrawingsSync}
+                        onDrawingsSync={(drawings: unknown[]) => handleDrawingsChange(chart.id, chart.symbol, chart.exchange || 'NSE', drawings)}
                         onAlertTriggered={onAlertTriggered ? (evt: AlertEvent) => onAlertTriggered(chart.id, chart.symbol, chart.exchange || 'NSE', evt) : undefined}
                         onReplayModeChange={onReplayModeChange ? (isActive: boolean) => onReplayModeChange(chart.id, isActive) : undefined}
                         onOHLCDataUpdate={onOHLCDataUpdate}

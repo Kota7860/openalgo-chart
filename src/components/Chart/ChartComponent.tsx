@@ -545,6 +545,26 @@ const ChartComponent = forwardRef<any, ChartComponentProps>(({
 
     // Expose undo/redo and line tool manager to parent
     useImperativeHandle(ref, () => ({
+        // Expose chart and mainSeries for crosshair/drawing sync
+        get chart() {
+            return chartRef.current;
+        },
+        get mainSeries() {
+            return mainSeriesRef.current;
+        },
+        // Set drawings from external source (for sync between charts)
+        setDrawings: (drawings: any[]) => {
+            if (lineToolManagerRef.current && typeof lineToolManagerRef.current.importDrawings === 'function') {
+                lineToolManagerRef.current.importDrawings(drawings, true);
+            }
+        },
+        // Get current drawings
+        getDrawings: () => {
+            if (lineToolManagerRef.current && typeof lineToolManagerRef.current.exportDrawings === 'function') {
+                return lineToolManagerRef.current.exportDrawings();
+            }
+            return [];
+        },
         undo: () => {
             if (lineToolManagerRef.current) lineToolManagerRef.current.undo();
         },
