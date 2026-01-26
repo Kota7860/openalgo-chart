@@ -2798,11 +2798,6 @@ export class LineToolManager extends PluginBase {
      * Import drawings from saved data and recreate them on the chart
      * @param drawings Array of drawing data objects from exportDrawings
      * @param clearExisting If true, remove all existing drawings first
-     */
-    /**
-     * Import drawings from saved data and recreate them on the chart
-     * @param drawings Array of drawing data objects from exportDrawings
-     * @param clearExisting If true, remove all existing drawings first
      * @param skipCallback If true, don't trigger onDrawingsChanged (used for sync to prevent loops)
      */
     public importDrawings(drawings: any[], clearExisting: boolean = true, skipCallback: boolean = false): void {
