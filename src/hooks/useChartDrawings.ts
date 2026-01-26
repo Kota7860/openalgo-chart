@@ -19,7 +19,7 @@ export interface Drawing {
 
 /** Line Tool Manager interface */
 export interface LineToolManager {
-  importDrawings?: (drawings: Drawing[], replace?: boolean) => void;
+  importDrawings?: (drawings: Drawing[], replace?: boolean, skipCallback?: boolean) => void;
   exportDrawings?: () => Drawing[];
   setOnDrawingsChanged?: (callback: (() => void) | null) => void;
   _autoSaveDrawings?: () => void;
@@ -69,10 +69,11 @@ export const useChartDrawings = (
         if (drawings && drawings.length > 0 && manager.importDrawings) {
           logger.debug('[ChartComponent] Importing', drawings.length, 'drawings...');
           try {
-            manager.importDrawings(drawings, true);
+            // Skip callback during initial load to prevent unnecessary auto-save
+            manager.importDrawings(drawings, true, true);
             logger.debug('[ChartComponent] Import complete!');
 
-            // Initial sync after load
+            // Initial sync after load (just notify parent, don't trigger save)
             if (onDrawingsSync && manager.exportDrawings) {
               onDrawingsSync(manager.exportDrawings());
             }
