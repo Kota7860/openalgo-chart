@@ -49,6 +49,13 @@ export const useChartDrawings = (
   const managerRef = useRef<LineToolManager | null>(null);
   // Use ref for timeout to prevent memory leaks
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Use ref for callback to prevent effect re-runs when callback changes
+  const onDrawingsSyncRef = useRef(onDrawingsSync);
+
+  // Keep the ref updated
+  useEffect(() => {
+    onDrawingsSyncRef.current = onDrawingsSync;
+  }, [onDrawingsSync]);
 
   useEffect(() => {
     if (!manager || !symbol) return;
@@ -74,8 +81,8 @@ export const useChartDrawings = (
             logger.debug('[ChartComponent] Import complete!');
 
             // Initial sync after load (just notify parent, don't trigger save)
-            if (onDrawingsSync && manager.exportDrawings) {
-              onDrawingsSync(manager.exportDrawings());
+            if (onDrawingsSyncRef.current && manager.exportDrawings) {
+              onDrawingsSyncRef.current(manager.exportDrawings());
             }
           } catch (importErr) {
             logger.warn('[ChartComponent] Error importing drawings (chart likely disposed):', importErr);
@@ -114,8 +121,8 @@ export const useChartDrawings = (
         autoSaveDrawings();
 
         // Sync with parent for Object Tree
-        if (onDrawingsSync && manager.exportDrawings) {
-          onDrawingsSync(manager.exportDrawings());
+        if (onDrawingsSyncRef.current && manager.exportDrawings) {
+          onDrawingsSyncRef.current(manager.exportDrawings());
         }
       });
     }
@@ -131,7 +138,7 @@ export const useChartDrawings = (
         manager.setOnDrawingsChanged(null);
       }
     };
-  }, [manager, symbol, exchange, interval, onDrawingsSync]);
+  }, [manager, symbol, exchange, interval]);
 };
 
 export default useChartDrawings;
