@@ -1,6 +1,6 @@
 /**
  * AI Analysis Settings Section
- * Allows users to save their Claude API key for AI chart analysis.
+ * Allows users to save their Claude API key and preferred model for AI chart analysis.
  */
 import React, { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
@@ -8,18 +8,28 @@ import { Eye, EyeOff, Check } from 'lucide-react';
 import styles from '../SettingsPopup.module.css';
 import { STORAGE_KEYS } from '../../../constants/storageKeys';
 
+const CLAUDE_MODELS = [
+  { value: 'claude-sonnet-4-6',          label: 'Sonnet 4.6 — Fast, Recommended' },
+  { value: 'claude-opus-4-6',            label: 'Opus 4.6 — Most Capable, Slower' },
+  { value: 'claude-haiku-4-5-20251001',  label: 'Haiku 4.5 — Fastest, Cheapest' },
+];
+
 const AISection: React.FC = () => {
-  const [apiKey, setApiKey]       = useState('');
-  const [showKey, setShowKey]     = useState(false);
-  const [saved, setSaved]         = useState(false);
+  const [apiKey, setApiKey]   = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [saved, setSaved]     = useState(false);
+  const [model, setModel]     = useState('claude-sonnet-4-6');
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.CLAUDE_API_KEY);
-    if (stored) setApiKey(stored);
+    const storedKey   = localStorage.getItem(STORAGE_KEYS.CLAUDE_API_KEY);
+    const storedModel = localStorage.getItem(STORAGE_KEYS.CLAUDE_MODEL);
+    if (storedKey)   setApiKey(storedKey);
+    if (storedModel) setModel(storedModel);
   }, []);
 
   const handleSave = () => {
     localStorage.setItem(STORAGE_KEYS.CLAUDE_API_KEY, apiKey.trim());
+    localStorage.setItem(STORAGE_KEYS.CLAUDE_MODEL, model);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
@@ -28,6 +38,12 @@ const AISection: React.FC = () => {
     localStorage.removeItem(STORAGE_KEYS.CLAUDE_API_KEY);
     setApiKey('');
     setSaved(false);
+  };
+
+  const handleModelChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value;
+    setModel(val);
+    localStorage.setItem(STORAGE_KEYS.CLAUDE_MODEL, val);
   };
 
   return (
@@ -65,6 +81,21 @@ const AISection: React.FC = () => {
             Get API key ↗
           </a>
         </p>
+      </div>
+
+      <div className={styles.inputGroup}>
+        <label className={styles.inputLabel}>Claude Model</label>
+        <select
+          value={model}
+          onChange={handleModelChange}
+          className={styles.input}
+          style={{ cursor: 'pointer' }}
+        >
+          {CLAUDE_MODELS.map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+        <p className={styles.inputHint}>Model used for chart analysis. Saved immediately.</p>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>

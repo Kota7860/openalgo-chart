@@ -285,3 +285,44 @@
   font-size: 11px;
   margin-top: 6px;
 }
+
+/* Tab bar */
+.tabBar {
+  display: flex;
+  border-bottom: 1px solid var(--tv-color-border, #363a45);
+  flex-shrink: 0;
+}
+
+.tab {
+  flex: 1;
+  padding: 7px 0;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--tv-color-text-secondary, #787b86);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.tab:hover { color: var(--tv-color-text-primary, #d1d4dc); }
+
+.tabActive {
+  color: var(--tv-color-brand, #2962ff);
+  border-bottom-color: var(--tv-color-brand, #2962ff);
+}
+
+/* Confluence score progress bar */
+.confluenceTrack {
+  height: 5px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.confluenceFill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}

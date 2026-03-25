@@ -63,6 +63,7 @@ export const STORAGE_KEYS = {
 
   // AI Analysis
   CLAUDE_API_KEY: 'claude_api_key',
+  CLAUDE_MODEL: 'claude_model',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

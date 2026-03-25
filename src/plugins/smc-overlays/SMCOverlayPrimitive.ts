@@ -20,6 +20,8 @@ import type {
   StructureBreak,
   LiquidityLevel,
   SwingPoint,
+  BreakerBlock,
+  ImpulsiveCandle,
 } from '../../services/smcDetectionService';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -32,6 +34,8 @@ export interface SMCOverlayData {
   structureBreaks: StructureBreak[];
   liquidityLevels: LiquidityLevel[];
   swingPoints: SwingPoint[];
+  breakerBlocks: BreakerBlock[];
+  impulsiveCandles: ImpulsiveCandle[];
 }
 
 export interface SMCOverlayOptions {
@@ -40,6 +44,8 @@ export interface SMCOverlayOptions {
   showStructureBreaks: boolean;
   showLiquidityLevels: boolean;
   showSwingPoints: boolean;
+  showBreakerBlocks: boolean;
+  showImpulsiveCandles: boolean;
 }
 
 const DEFAULT_DATA: SMCOverlayData = {
@@ -48,6 +54,8 @@ const DEFAULT_DATA: SMCOverlayData = {
   structureBreaks: [],
   liquidityLevels: [],
   swingPoints: [],
+  breakerBlocks: [],
+  impulsiveCandles: [],
 };
 
 const DEFAULT_OPTIONS: SMCOverlayOptions = {
@@ -56,6 +64,8 @@ const DEFAULT_OPTIONS: SMCOverlayOptions = {
   showStructureBreaks: true,
   showLiquidityLevels: true,
   showSwingPoints: true,
+  showBreakerBlocks: true,
+  showImpulsiveCandles: true,
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -88,6 +98,11 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
       const data      = src._data;
       const opts      = src._options;
 
+      // Visible time range for frustum culling
+      const visibleRange = timeScale.getVisibleRange();
+      const fromTime = visibleRange ? (visibleRange.from as unknown as number) : -Infinity;
+      const toTime   = visibleRange ? (visibleRange.to   as unknown as number) : Infinity;
+
       // Helper: time → pixel X
       const tx = (t: number): number | null => {
         const c = timeScale.timeToCoordinate(t as Time);
@@ -100,11 +115,45 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
         return c === null ? null : c * verticalPixelRatio;
       };
 
+      // Time culling: is any part of this time span visible?
+      const timeVisible = (start: number, end: number) =>
+        end >= fromTime && start <= toTime;
+
+      // Price culling: is any part of this price range visible?
+      const priceVisible = (high: number, low: number) => {
+        const yH = py(high);
+        const yL = py(low);
+        if (yH === null || yL === null) return true; // assume visible if can't determine
+        const top    = Math.min(yH, yL);
+        const bottom = Math.max(yH, yL);
+        return bottom >= 0 && top <= bitmapSize.height;
+      };
+
       ctx.save();
+
+      // ── Impulse Candle Highlights ─────────────────────────────────────────
+      if (opts.showImpulsiveCandles) {
+        for (const ic of data.impulsiveCandles) {
+          if (!timeVisible(ic.time, ic.time)) continue;
+          const x = tx(ic.time);
+          if (x === null) continue;
+
+          const barW = Math.max(4 * horizontalPixelRatio, 2);
+          ctx.save();
+          ctx.fillStyle = ic.direction === 'bullish'
+            ? 'rgba(38,166,154,0.3)'
+            : 'rgba(239,83,80,0.3)';
+          ctx.fillRect(x - barW / 2, 0, barW, bitmapSize.height);
+          ctx.restore();
+        }
+      }
 
       // ── Order Blocks ─────────────────────────────────────────────────────
       if (opts.showOrderBlocks) {
         for (const ob of data.orderBlocks) {
+          if (!timeVisible(ob.startTime, ob.endTime ?? toTime)) continue;
+          if (!priceVisible(ob.high, ob.low)) continue;
+
           const x1 = tx(ob.startTime);
           const yH = py(ob.high);
           const yL = py(ob.low);
@@ -114,7 +163,7 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           const xStart = Math.min(x1, x2);
           const width  = Math.max(Math.abs(x2 - x1), 4);
           const top    = Math.min(yH, yL);
-          const height = Math.abs(yH - yL);
+          const height = Math.max(Math.abs(yH - yL), 2);
 
           if (ob.type === 'bullish') {
             ctx.fillStyle = 'rgba(38,166,154,0.18)';
@@ -134,9 +183,73 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
         }
       }
 
+      // ── Breaker Blocks ───────────────────────────────────────────────────
+      if (opts.showBreakerBlocks) {
+        for (const bb of data.breakerBlocks) {
+          if (!timeVisible(bb.startTime, bb.endTime ?? toTime)) continue;
+          if (!priceVisible(bb.high, bb.low)) continue;
+
+          const x1 = tx(bb.startTime);
+          const yH = py(bb.high);
+          const yL = py(bb.low);
+          if (x1 === null || yH === null || yL === null) continue;
+
+          const x2 = tx(bb.endTime) ?? bitmapSize.width;
+          const xStart = Math.min(x1, x2);
+          const width  = Math.max(Math.abs(x2 - x1), 4);
+          const top    = Math.min(yH, yL);
+          const height = Math.max(Math.abs(yH - yL), 2);
+
+          // Bullish breaker: green dashed border + backward diagonal hatch
+          // Bearish breaker: red dashed border + backward diagonal hatch
+          const isBull = bb.type === 'bullish';
+          const fillColor   = isBull ? 'rgba(38,166,154,0.1)'  : 'rgba(239,83,80,0.1)';
+          const borderColor = isBull ? 'rgba(38,166,154,0.9)'  : 'rgba(239,83,80,0.9)';
+          const hatchColor  = isBull ? 'rgba(38,166,154,0.35)' : 'rgba(239,83,80,0.35)';
+          const label       = isBull ? 'BB↑' : 'BB↓';
+
+          // Fill
+          ctx.fillStyle = fillColor;
+          ctx.fillRect(xStart, top, width, height);
+
+          // Backward diagonal hatch (distinguishable from FVG forward hatch)
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(xStart, top, width, height);
+          ctx.clip();
+          ctx.strokeStyle = hatchColor;
+          ctx.lineWidth = 0.5 * horizontalPixelRatio;
+          const step = 8 * horizontalPixelRatio;
+          for (let hx = xStart - height; hx < xStart + width + height; hx += step) {
+            ctx.beginPath();
+            ctx.moveTo(hx + height, top);
+            ctx.lineTo(hx, top + height);
+            ctx.stroke();
+          }
+          ctx.restore();
+
+          // Dashed border
+          ctx.save();
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 1 * horizontalPixelRatio;
+          ctx.setLineDash([4 * horizontalPixelRatio, 3 * horizontalPixelRatio]);
+          ctx.strokeRect(xStart, top, width, height);
+          ctx.setLineDash([]);
+          ctx.restore();
+
+          // Label
+          ctx.fillStyle = borderColor;
+          ctx.font = `${10 * horizontalPixelRatio}px monospace`;
+          ctx.fillText(label, xStart + 3 * horizontalPixelRatio, top + 12 * verticalPixelRatio);
+        }
+      }
+
       // ── Fair Value Gaps ───────────────────────────────────────────────────
       if (opts.showFVGs) {
         for (const fvg of data.fairValueGaps) {
+          if (!timeVisible(fvg.time, toTime)) continue;
+          if (!priceVisible(fvg.top, fvg.low)) continue;
+
           const x1 = tx(fvg.time);
           if (x1 === null) continue;
           const yT = py(fvg.top);
@@ -144,7 +257,7 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           if (yT === null || yL === null) continue;
 
           const top    = Math.min(yT, yL);
-          const height = Math.abs(yT - yL);
+          const height = Math.max(Math.abs(yT - yL), 2);
           const width  = bitmapSize.width - x1;
           if (width <= 0) continue;
 
@@ -153,18 +266,20 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
 
           ctx.fillRect(x1, top, width, height);
 
-          // Diagonal hatch
+          // Forward diagonal hatch
           ctx.save();
           ctx.beginPath();
           ctx.rect(x1, top, width, height);
           ctx.clip();
+          ctx.strokeStyle = fvg.type === 'bullish' ? 'rgba(38,166,154,0.3)' : 'rgba(239,83,80,0.3)';
+          ctx.lineWidth = 0.5 * horizontalPixelRatio;
           const step = 8 * horizontalPixelRatio;
           for (let hx = x1 - height; hx < x1 + width + height; hx += step) {
+            ctx.beginPath();
             ctx.moveTo(hx, top);
             ctx.lineTo(hx + height, top + height);
+            ctx.stroke();
           }
-          ctx.lineWidth = 0.5 * horizontalPixelRatio;
-          ctx.stroke();
           ctx.restore();
 
           // Border lines (top and bottom)
@@ -183,9 +298,11 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
       // ── Structure Breaks (BOS / ChoCH) ───────────────────────────────────
       if (opts.showStructureBreaks) {
         for (const sb of data.structureBreaks) {
+          if (!timeVisible(sb.prevSwingTime, toTime)) continue;
           const xStart = tx(sb.prevSwingTime);
           const y      = py(sb.level);
           if (xStart === null || y === null) continue;
+          if (y < 0 || y > bitmapSize.height) continue;
 
           ctx.save();
           ctx.lineWidth = 1.5 * horizontalPixelRatio;
@@ -210,6 +327,7 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
         for (const ll of data.liquidityLevels) {
           const y = py(ll.price);
           if (y === null) continue;
+          if (y < 0 || y > bitmapSize.height) continue;
 
           const isEQH = ll.type === 'equal_highs';
           ctx.save();
@@ -222,11 +340,14 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           ctx.stroke();
           ctx.setLineDash([]);
 
+          // Price label on the RIGHT side
+          const priceLabel = `${isEQH ? 'EQH' : 'EQL'} @ ${ll.price.toFixed(2)} (${ll.touchCount}x)`;
           ctx.fillStyle = isEQH ? '#ef5350' : '#26a69a';
           ctx.font = `${9 * horizontalPixelRatio}px monospace`;
+          const labelWidth = ctx.measureText(priceLabel).width;
           ctx.fillText(
-            `${isEQH ? 'EQH' : 'EQL'} (${ll.touchCount}x)`,
-            4 * horizontalPixelRatio,
+            priceLabel,
+            bitmapSize.width - labelWidth - 4 * horizontalPixelRatio,
             y - 3 * verticalPixelRatio
           );
           ctx.restore();
@@ -237,9 +358,11 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
       if (opts.showSwingPoints) {
         const sz = 6 * horizontalPixelRatio;
         for (const sw of data.swingPoints) {
+          if (!timeVisible(sw.time, sw.time)) continue;
           const x = tx(sw.time);
           const y = py(sw.price);
           if (x === null || y === null) continue;
+          if (y < 0 || y > bitmapSize.height) continue;
 
           ctx.save();
           ctx.beginPath();

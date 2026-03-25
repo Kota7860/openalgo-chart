@@ -68,7 +68,9 @@ import CompareOptionsDialog from './components/Chart/CompareOptionsDialog';
 const SectorHeatmapModal = lazy(() => import('./components/SectorHeatmap/SectorHeatmapModal'));
 const DepthOfMarket = lazy(() => import('./components/DepthOfMarket/DepthOfMarket'));
 const ANNScanner = lazy(() => import('./components/ANNScanner/ANNScanner'));
-const AIAnalysisPanel = lazy(() => import('./components/AIAnalysis/AIAnalysisPanel'));
+const AIAnalysisPanel  = lazy(() => import('./components/AIAnalysis/AIAnalysisPanel'));
+const MTFBiasPanel     = lazy(() => import('./components/MTFBias/MTFBiasPanel'));
+const TradeJournalPanel = lazy(() => import('./components/TradeJournal/TradeJournalPanel'));
 const ChartTemplatesDialog = lazy(() => import('./components/ChartTemplates/ChartTemplatesDialog'));
 const ShortcutsSettings = lazy(() => import('./components/ShortcutsSettings/ShortcutsSettings'));
 const IndicatorSettingsDialog = lazy(() => import('./components/IndicatorSettings/IndicatorSettingsDialog'));
@@ -2169,18 +2171,23 @@ function AppContent({ isAuthenticated, setIsAuthenticated }) {
                 exchange={currentExchange}
                 interval={currentInterval}
                 chartRef={getChartRef(activeChartId) as React.RefObject<any>}
-                onOverlayDataReady={(smcData) => {
-                  const ref = getChartRef(activeChartId) as any;
-                  if (ref?.current?.setSMCOverlayData) {
-                    ref.current.setSMCOverlayData({
-                      orderBlocks: smcData.orderBlocks,
-                      fairValueGaps: smcData.fairValueGaps,
-                      structureBreaks: smcData.structureBreaks,
-                      liquidityLevels: smcData.liquidityLevels,
-                      swingPoints: smcData.swingPoints,
-                    });
-                  }
+                onOverlayDataReady={() => {
+                  // Overlay is set directly inside AIAnalysisPanel via chartRef
                 }}
+              />
+            </Suspense>
+          ) : activeRightPanel === 'mtf_bias' ? (
+            <Suspense fallback={<div style={{ padding: 20 }}>Loading MTF Bias...</div>}>
+              <MTFBiasPanel
+                symbol={currentSymbol}
+                exchange={currentExchange}
+              />
+            </Suspense>
+          ) : activeRightPanel === 'trade_journal' ? (
+            <Suspense fallback={<div style={{ padding: 20 }}>Loading Trade Journal...</div>}>
+              <TradeJournalPanel
+                symbol={currentSymbol}
+                exchange={currentExchange}
               />
             </Suspense>
           ) : activeRightPanel === 'dom' ? (

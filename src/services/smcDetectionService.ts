@@ -1,8 +1,11 @@
 /**
  * SMC (Smart Money Concepts) & ICT Detection Service
  * Pure TypeScript — no React, no chart library dependencies.
- * Detects: Swing Points, Order Blocks, Fair Value Gaps, Break of Structure / ChoCH,
- * Liquidity Levels, Price Action Patterns, Support/Resistance, Kill Zones.
+ *
+ * Detects: Swing Points, Order Blocks (with proper wick-based logic),
+ * Fair Value Gaps (with minimum gap threshold), Break of Structure / ChoCH,
+ * Liquidity Levels (3× wider tolerance), Price Action Patterns,
+ * Support/Resistance, Kill Zones, Breaker Blocks, Impulse Candles.
  */
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -32,6 +35,15 @@ export interface OrderBlock {
   low: number;
   strength: number; // 1–3
   mitigated: boolean;
+}
+
+/** A breaker block is a mitigated OB that flips polarity */
+export interface BreakerBlock {
+  type: 'bullish' | 'bearish';   // polarity AFTER flip
+  startTime: number;
+  endTime: number;
+  high: number;
+  low: number;
 }
 
 export interface FairValueGap {
@@ -79,14 +91,22 @@ export interface SupportResistanceLevel {
   strength: 'strong' | 'moderate' | 'weak';
 }
 
+export interface ImpulsiveCandle {
+  time: number;
+  direction: 'bullish' | 'bearish';
+  bodyRatio: number; // body / full range (0–1)
+}
+
 export interface SMCAnalysisResult {
   swingPoints: SwingPoint[];
   orderBlocks: OrderBlock[];
+  breakerBlocks: BreakerBlock[];
   fairValueGaps: FairValueGap[];
   structureBreaks: StructureBreak[];
   liquidityLevels: LiquidityLevel[];
   priceActionPatterns: PriceActionPattern[];
   supportResistance: SupportResistanceLevel[];
+  impulsiveCandles: ImpulsiveCandle[];
   currentTrend: 'bullish' | 'bearish' | 'ranging';
   premiumDiscountLevel: number;
   killZone: 'asia' | 'london' | 'ny' | null;
@@ -105,33 +125,26 @@ export function detectSwingPoints(
   const len = candles.length;
 
   for (let i = leftBars; i < len - rightBars; i++) {
-    // Check swing high
     let isHigh = true;
     for (let j = i - leftBars; j <= i + rightBars; j++) {
       if (j === i) continue;
       if (candles[j].high >= candles[i].high) { isHigh = false; break; }
     }
-    if (isHigh) {
-      swings.push({ type: 'high', time: candles[i].time, price: candles[i].high });
-    }
+    if (isHigh) swings.push({ type: 'high', time: candles[i].time, price: candles[i].high });
 
-    // Check swing low
     let isLow = true;
     for (let j = i - leftBars; j <= i + rightBars; j++) {
       if (j === i) continue;
       if (candles[j].low <= candles[i].low) { isLow = false; break; }
     }
-    if (isLow) {
-      swings.push({ type: 'low', time: candles[i].time, price: candles[i].low });
-    }
+    if (isLow) swings.push({ type: 'low', time: candles[i].time, price: candles[i].low });
   }
 
-  // Return last 30 swings
   return swings.slice(-30);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Order Blocks
+// Order Blocks  (FIX: use wicks for strong-move check and mitigation)
 // ────────────────────────────────────────────────────────────────────────────
 
 export function detectOrderBlocks(
@@ -144,28 +157,27 @@ export function detectOrderBlocks(
 
   for (let i = 5; i < len - lookForward; i++) {
     const c = candles[i];
-    const isDown = c.close < c.open; // bearish candle = potential bullish OB
-    const isUp   = c.close > c.open; // bullish candle = potential bearish OB
+    const isDown = c.close < c.open; // down candle → potential bullish OB
+    const isUp   = c.close > c.open; // up candle   → potential bearish OB
 
     if (isDown) {
-      // Check if next N candles all move strongly up
+      // Strong up-move: every forward candle's LOW must be above OB's HIGH (wick-based)
       let strongUp = true;
       for (let f = 1; f <= lookForward; f++) {
-        if (candles[i + f].close <= c.high) { strongUp = false; break; }
+        if (candles[i + f].low <= c.high) { strongUp = false; break; }
       }
       if (strongUp) {
-        // Check if price has revisited (mitigated)
+        // Mitigation: any subsequent candle's LOW enters the OB zone
         let mitigated = false;
         for (let f = i + 1; f < len; f++) {
-          if (candles[f].close < c.high && candles[f].close > c.low) {
+          if (candles[f].low < c.high && candles[f].low > c.low) {
             mitigated = true; break;
           }
         }
 
-        // Strength by how far price moved vs OB size
         const move = candles[i + lookForward].close - c.high;
-        const obSize = c.high - c.low;
-        const strength = move > obSize * 3 ? 3 : move > obSize ? 2 : 1;
+        const obSize = Math.max(c.high - c.low, 1e-10);
+        const strength: number = move > obSize * 3 ? 3 : move > obSize ? 2 : 1;
 
         obs.push({
           type: 'bullish',
@@ -180,21 +192,23 @@ export function detectOrderBlocks(
     }
 
     if (isUp) {
+      // Strong down-move: every forward candle's HIGH must be below OB's LOW
       let strongDown = true;
       for (let f = 1; f <= lookForward; f++) {
-        if (candles[i + f].close >= c.low) { strongDown = false; break; }
+        if (candles[i + f].high >= c.low) { strongDown = false; break; }
       }
       if (strongDown) {
+        // Mitigation: any subsequent candle's HIGH enters the OB zone
         let mitigated = false;
         for (let f = i + 1; f < len; f++) {
-          if (candles[f].close > c.low && candles[f].close < c.high) {
+          if (candles[f].high > c.low && candles[f].high < c.high) {
             mitigated = true; break;
           }
         }
 
         const move = c.low - candles[i + lookForward].close;
-        const obSize = c.high - c.low;
-        const strength = move > obSize * 3 ? 3 : move > obSize ? 2 : 1;
+        const obSize = Math.max(c.high - c.low, 1e-10);
+        const strength: number = move > obSize * 3 ? 3 : move > obSize ? 2 : 1;
 
         obs.push({
           type: 'bearish',
@@ -209,19 +223,85 @@ export function detectOrderBlocks(
     }
   }
 
-  // Return last 5 unmitigated OBs per direction
   const bullish = obs.filter(o => o.type === 'bullish' && !o.mitigated).slice(-5);
   const bearish = obs.filter(o => o.type === 'bearish' && !o.mitigated).slice(-5);
   return [...bullish, ...bearish];
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Fair Value Gaps
+// Breaker Blocks  (mitigated OBs that flip polarity)
+// ────────────────────────────────────────────────────────────────────────────
+
+export function detectBreakerBlocks(candles: OHLCCandle[]): BreakerBlock[] {
+  const obs: OrderBlock[] = [];
+  const len = candles.length;
+  const lookForward = 5;
+
+  // Re-detect ALL OBs (including mitigated ones)
+  for (let i = 5; i < len - lookForward; i++) {
+    const c = candles[i];
+    const isDown = c.close < c.open;
+    const isUp   = c.close > c.open;
+
+    if (isDown) {
+      let strongUp = true;
+      for (let f = 1; f <= lookForward; f++) {
+        if (candles[i + f].low <= c.high) { strongUp = false; break; }
+      }
+      if (strongUp) {
+        let mitigated = false;
+        for (let f = i + 1; f < len; f++) {
+          if (candles[f].low < c.high && candles[f].low > c.low) {
+            mitigated = true; break;
+          }
+        }
+        obs.push({ type: 'bullish', startTime: c.time, endTime: candles[Math.min(i + lookForward, len - 1)].time, high: c.high, low: c.low, strength: 1, mitigated });
+      }
+    }
+    if (isUp) {
+      let strongDown = true;
+      for (let f = 1; f <= lookForward; f++) {
+        if (candles[i + f].high >= c.low) { strongDown = false; break; }
+      }
+      if (strongDown) {
+        let mitigated = false;
+        for (let f = i + 1; f < len; f++) {
+          if (candles[f].high > c.low && candles[f].high < c.high) {
+            mitigated = true; break;
+          }
+        }
+        obs.push({ type: 'bearish', startTime: c.time, endTime: candles[Math.min(i + lookForward, len - 1)].time, high: c.high, low: c.low, strength: 1, mitigated });
+      }
+    }
+  }
+
+  // Mitigated bullish OB → bearish breaker; mitigated bearish OB → bullish breaker
+  return obs
+    .filter(o => o.mitigated)
+    .slice(-6)
+    .map(o => ({
+      type: o.type === 'bullish' ? 'bearish' : 'bullish' as 'bullish' | 'bearish',
+      startTime: o.startTime,
+      endTime: o.endTime,
+      high: o.high,
+      low: o.low,
+    }));
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Fair Value Gaps  (FIX: minimum gap threshold relative to avg candle range)
 // ────────────────────────────────────────────────────────────────────────────
 
 export function detectFairValueGaps(candles: OHLCCandle[]): FairValueGap[] {
   const fvgs: FairValueGap[] = [];
   const len = candles.length;
+
+  // Compute average candle range for noise filter (last 14 candles)
+  const lookback = Math.min(14, len);
+  let avgRange = 0;
+  for (let k = len - lookback; k < len; k++) avgRange += (candles[k].high - candles[k].low);
+  avgRange = avgRange / lookback;
+  const minGapSize = avgRange * 0.1; // 10% of avg range is the minimum gap
 
   for (let i = 1; i < len - 1; i++) {
     const prev = candles[i - 1];
@@ -229,7 +309,7 @@ export function detectFairValueGaps(candles: OHLCCandle[]): FairValueGap[] {
     const next = candles[i + 1];
 
     // Bullish FVG: next candle low > prev candle high
-    if (next.low > prev.high) {
+    if (next.low > prev.high && (next.low - prev.high) >= minGapSize) {
       let filled = false;
       for (let f = i + 2; f < len; f++) {
         if (candles[f].low <= next.low && candles[f].high >= prev.high) {
@@ -240,7 +320,7 @@ export function detectFairValueGaps(candles: OHLCCandle[]): FairValueGap[] {
     }
 
     // Bearish FVG: next candle high < prev candle low
-    if (next.high < prev.low) {
+    if (next.high < prev.low && (prev.low - next.high) >= minGapSize) {
       let filled = false;
       for (let f = i + 2; f < len; f++) {
         if (candles[f].high >= next.high && candles[f].low <= prev.low) {
@@ -251,12 +331,13 @@ export function detectFairValueGaps(candles: OHLCCandle[]): FairValueGap[] {
     }
   }
 
-  // Return last 10 unfilled FVGs
   return fvgs.filter(g => !g.filled).slice(-10);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
 // Structure Breaks (BOS / ChoCH)
+// BOS  = structure break in the SAME direction as the prevailing trend
+// ChoCH = structure break that REVERSES the prevailing trend
 // ────────────────────────────────────────────────────────────────────────────
 
 export function detectStructureBreaks(
@@ -266,23 +347,22 @@ export function detectStructureBreaks(
   const breaks: StructureBreak[] = [];
   if (swings.length < 4) return breaks;
 
-  // Build alternating swing sequence
   const highs = swings.filter(s => s.type === 'high').sort((a, b) => a.time - b.time);
   const lows  = swings.filter(s => s.type === 'low').sort((a, b) => a.time - b.time);
 
-  // Detect bullish BOS: close breaks above last confirmed swing high
+  // Bullish structure break: current swing high > previous swing high
   for (let i = 1; i < highs.length; i++) {
-    const prevHigh = highs[i - 1];
+    const prevHigh    = highs[i - 1];
     const currentHigh = highs[i];
     if (currentHigh.price > prevHigh.price) {
-      // Determine BOS vs ChoCH based on prior structure
+      // ChoCH if prior lows were making LOWER lows (bearish trend being reversed)
       const priorLows = lows.filter(l => l.time < prevHigh.time);
-      const type = priorLows.length >= 2
-        && priorLows[priorLows.length - 1].price < priorLows[priorLows.length - 2].price
-        ? 'ChoCH' : 'BOS';
-
+      const wasDowntrend = priorLows.length >= 2 &&
+        priorLows[priorLows.length - 1].price < priorLows[priorLows.length - 2].price;
+      // ChoCH = bullish break after bearish structure (reversal)
+      // BOS   = bullish break continuing an established bullish structure
       breaks.push({
-        type,
+        type: wasDowntrend ? 'ChoCH' : 'BOS',
         direction: 'bullish',
         time: currentHigh.time,
         level: prevHigh.price,
@@ -291,18 +371,17 @@ export function detectStructureBreaks(
     }
   }
 
-  // Detect bearish BOS: close breaks below last confirmed swing low
+  // Bearish structure break: current swing low < previous swing low
   for (let i = 1; i < lows.length; i++) {
-    const prevLow = lows[i - 1];
+    const prevLow    = lows[i - 1];
     const currentLow = lows[i];
     if (currentLow.price < prevLow.price) {
       const priorHighs = highs.filter(h => h.time < prevLow.time);
-      const type = priorHighs.length >= 2
-        && priorHighs[priorHighs.length - 1].price > priorHighs[priorHighs.length - 2].price
-        ? 'ChoCH' : 'BOS';
-
+      const wasUptrend = priorHighs.length >= 2 &&
+        priorHighs[priorHighs.length - 1].price > priorHighs[priorHighs.length - 2].price;
+      // ChoCH = bearish break after bullish structure (reversal)
       breaks.push({
-        type,
+        type: wasUptrend ? 'ChoCH' : 'BOS',
         direction: 'bearish',
         time: currentLow.time,
         level: prevLow.price,
@@ -315,12 +394,12 @@ export function detectStructureBreaks(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Liquidity Levels (Equal Highs / Equal Lows)
+// Liquidity Levels  (FIX: tolerance increased to 0.003 = 0.3%)
 // ────────────────────────────────────────────────────────────────────────────
 
 export function detectLiquidityLevels(
   candles: OHLCCandle[],
-  tolerance = 0.001
+  tolerance = 0.003   // was 0.001 — 3× wider to catch more equal highs/lows
 ): LiquidityLevel[] {
   const levels: LiquidityLevel[] = [];
 
@@ -337,12 +416,10 @@ export function detectLiquidityLevels(
       }
     }
     if (group.length >= 2) {
-      // Check if swept (any close above max high in group)
       const maxHigh = Math.max(...group.map(idx => candles[idx].high));
-      const lastGroupTime = candles[Math.max(...group)].time;
-      const swept = candles.some(
-        c => c.time > lastGroupTime && c.close > maxHigh
-      );
+      const lastIdx = Math.max(...group);
+      const lastGroupTime = candles[lastIdx].time;
+      const swept = candles.some(c => c.time > lastGroupTime && c.close > maxHigh);
       if (!swept) {
         levels.push({
           type: 'equal_highs',
@@ -368,10 +445,9 @@ export function detectLiquidityLevels(
     }
     if (group.length >= 2) {
       const minLow = Math.min(...group.map(idx => candles[idx].low));
-      const lastGroupTime = candles[Math.max(...group)].time;
-      const swept = candles.some(
-        c => c.time > lastGroupTime && c.close < minLow
-      );
+      const lastIdx = Math.max(...group);
+      const lastGroupTime = candles[lastIdx].time;
+      const swept = candles.some(c => c.time > lastGroupTime && c.close < minLow);
       if (!swept) {
         levels.push({
           type: 'equal_lows',
@@ -392,20 +468,21 @@ export function detectLiquidityLevels(
 
 export function detectPriceActionPatterns(candles: OHLCCandle[]): PriceActionPattern[] {
   const patterns: PriceActionPattern[] = [];
-  const slice = candles.slice(-50); // Only check last 50
+  const slice = candles.slice(-50);
 
   for (let i = 1; i < slice.length; i++) {
-    const c  = slice[i];
-    const p  = slice[i - 1];
+    const c = slice[i];
+    const p = slice[i - 1];
 
-    const body    = Math.abs(c.close - c.open);
-    const range   = c.high - c.low;
+    const body   = Math.abs(c.close - c.open);
+    const range  = c.high - c.low;
+    if (range === 0) continue;
+
     const upperSh = c.high - Math.max(c.open, c.close);
     const lowerSh = Math.min(c.open, c.close) - c.low;
-    const prevBody = Math.abs(p.close - p.open);
 
     // Doji
-    if (range > 0 && body / range < 0.1) {
+    if (body / range < 0.1) {
       patterns.push({ type: 'doji', time: c.time, price: c.close, significance: 'medium' });
       continue;
     }
@@ -422,7 +499,7 @@ export function detectPriceActionPatterns(candles: OHLCCandle[]): PriceActionPat
       continue;
     }
 
-    // Hammer (after downtrend signals)
+    // Hammer
     if (lowerSh > body * 2 && upperSh < body * 0.5 && c.close > c.open) {
       patterns.push({ type: 'hammer', time: c.time, price: c.close, significance: 'medium' });
       continue;
@@ -434,13 +511,13 @@ export function detectPriceActionPatterns(candles: OHLCCandle[]): PriceActionPat
       continue;
     }
 
-    // Pin Bar Bullish
+    // Pin Bar Bullish (long lower wick)
     if (lowerSh > (body + upperSh) * 2) {
       patterns.push({ type: 'pin_bar_bull', time: c.time, price: c.close, significance: 'medium' });
       continue;
     }
 
-    // Pin Bar Bearish
+    // Pin Bar Bearish (long upper wick)
     if (upperSh > (body + lowerSh) * 2) {
       patterns.push({ type: 'pin_bar_bear', time: c.time, price: c.close, significance: 'medium' });
       continue;
@@ -456,6 +533,37 @@ export function detectPriceActionPatterns(candles: OHLCCandle[]): PriceActionPat
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Impulse Candles (large directional candles — market maker moves)
+// ────────────────────────────────────────────────────────────────────────────
+
+export function detectImpulsiveCandles(candles: OHLCCandle[]): ImpulsiveCandle[] {
+  const result: ImpulsiveCandle[] = [];
+  const slice = candles.slice(-100);
+  if (slice.length < 20) return result;
+
+  // Compute average body size over the lookback
+  const avgBody = slice.slice(0, -1).reduce((sum, c) => sum + Math.abs(c.close - c.open), 0) / (slice.length - 1);
+
+  for (const c of slice) {
+    const body  = Math.abs(c.close - c.open);
+    const range = c.high - c.low;
+    if (range === 0) continue;
+
+    const bodyRatio = body / range;
+    // Impulse: body ≥70% of range AND body ≥1.5× avg body
+    if (bodyRatio >= 0.7 && body >= avgBody * 1.5) {
+      result.push({
+        time: c.time,
+        direction: c.close >= c.open ? 'bullish' : 'bearish',
+        bodyRatio,
+      });
+    }
+  }
+
+  return result;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Support / Resistance
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -463,7 +571,6 @@ export function detectSupportResistance(candles: OHLCCandle[]): SupportResistanc
   const levels: SupportResistanceLevel[] = [];
   const tolerance = 0.003;
 
-  // Collect all pivot highs and lows
   const pivotHighs: number[] = [];
   const pivotLows: number[]  = [];
 
@@ -483,7 +590,6 @@ export function detectSupportResistance(candles: OHLCCandle[]): SupportResistanc
     ) pivotLows.push(candles[i].low);
   }
 
-  // Group highs into resistance levels
   const usedHighs = new Set<number>();
   for (let i = 0; i < pivotHighs.length; i++) {
     if (usedHighs.has(i)) continue;
@@ -505,7 +611,6 @@ export function detectSupportResistance(candles: OHLCCandle[]): SupportResistanc
     }
   }
 
-  // Group lows into support levels
   const usedLows = new Set<number>();
   for (let i = 0; i < pivotLows.length; i++) {
     if (usedLows.has(i)) continue;
@@ -531,7 +636,10 @@ export function detectSupportResistance(candles: OHLCCandle[]): SupportResistanc
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Kill Zone (IST = UTC+5:30)
+// Kill Zone  (FIX: corrected ICT kill zone windows in IST, plug timing gaps)
+// Asia    = 09:00–11:00 IST  (Tokyo/India open)
+// London  = 13:30–17:30 IST  (London 08:00–12:00 UTC)
+// NY AM   = 19:00–21:00 IST  (NY 09:30–11:30 EST)
 // ────────────────────────────────────────────────────────────────────────────
 
 export function getCurrentKillZone(
@@ -541,20 +649,11 @@ export function getCurrentKillZone(
   // Convert to IST: UTC + 5h30m
   const istMs = date.getTime() + (5 * 60 + 30) * 60 * 1000;
   const ist = new Date(istMs);
-  const hours = ist.getUTCHours();
-  const minutes = ist.getUTCMinutes();
-  const totalMinutes = hours * 60 + minutes;
+  const totalMinutes = ist.getUTCHours() * 60 + ist.getUTCMinutes();
 
-  const asiaStart  = 9 * 60;        // 09:00
-  const asiaEnd    = 11 * 60;       // 11:00
-  const londonStart = 13 * 60 + 30; // 13:30
-  const londonEnd   = 18 * 60 + 30; // 18:30
-  const nyStart     = 19 * 60;      // 19:00
-  const nyEnd       = 23 * 60 + 30; // 23:30
-
-  if (totalMinutes >= asiaStart && totalMinutes < asiaEnd) return 'asia';
-  if (totalMinutes >= londonStart && totalMinutes < londonEnd) return 'london';
-  if (totalMinutes >= nyStart && totalMinutes < nyEnd) return 'ny';
+  if (totalMinutes >= 540  && totalMinutes < 660)  return 'asia';    // 09:00–11:00 IST
+  if (totalMinutes >= 810  && totalMinutes < 1050)  return 'london';  // 13:30–17:30 IST
+  if (totalMinutes >= 1140 && totalMinutes < 1260)  return 'ny';      // 19:00–21:00 IST
   return null;
 }
 
@@ -563,26 +662,28 @@ export function getCurrentKillZone(
 // ────────────────────────────────────────────────────────────────────────────
 
 export function runFullSMCAnalysis(candles: OHLCCandle[]): SMCAnalysisResult {
-  const swingPoints     = detectSwingPoints(candles);
-  const orderBlocks     = detectOrderBlocks(candles, swingPoints);
-  const fairValueGaps   = detectFairValueGaps(candles);
-  const structureBreaks = detectStructureBreaks(candles, swingPoints);
-  const liquidityLevels = detectLiquidityLevels(candles);
+  const swingPoints       = detectSwingPoints(candles);
+  const orderBlocks       = detectOrderBlocks(candles, swingPoints);
+  const breakerBlocks     = detectBreakerBlocks(candles);
+  const fairValueGaps     = detectFairValueGaps(candles);
+  const structureBreaks   = detectStructureBreaks(candles, swingPoints);
+  const liquidityLevels   = detectLiquidityLevels(candles);
   const priceActionPatterns = detectPriceActionPatterns(candles);
   const supportResistance = detectSupportResistance(candles);
+  const impulsiveCandles  = detectImpulsiveCandles(candles);
 
-  // Determine trend from last 2 confirmed structure breaks
+  // Trend from last 2 confirmed structure breaks
   let currentTrend: 'bullish' | 'bearish' | 'ranging' = 'ranging';
   if (structureBreaks.length >= 2) {
     const last = structureBreaks[structureBreaks.length - 1];
     const prev = structureBreaks[structureBreaks.length - 2];
-    if (last.direction === 'bullish' && prev.direction === 'bullish') currentTrend = 'bullish';
+    if (last.direction === 'bullish' && prev.direction === 'bullish')   currentTrend = 'bullish';
     else if (last.direction === 'bearish' && prev.direction === 'bearish') currentTrend = 'bearish';
   } else if (structureBreaks.length === 1) {
     currentTrend = structureBreaks[0].direction;
   }
 
-  // Premium/Discount midpoint from last major swing range
+  // Premium/Discount midpoint
   const swingHighs = swingPoints.filter(s => s.type === 'high');
   const swingLows  = swingPoints.filter(s => s.type === 'low');
   let premiumDiscountLevel = 0;
@@ -592,18 +693,19 @@ export function runFullSMCAnalysis(candles: OHLCCandle[]): SMCAnalysisResult {
     premiumDiscountLevel = (lastHigh + lastLow) / 2;
   }
 
-  // Current kill zone from last candle timestamp
   const lastCandle = candles[candles.length - 1];
   const killZone = lastCandle ? getCurrentKillZone(lastCandle.time) : null;
 
   return {
     swingPoints,
     orderBlocks,
+    breakerBlocks,
     fairValueGaps,
     structureBreaks,
     liquidityLevels,
     priceActionPatterns,
     supportResistance,
+    impulsiveCandles,
     currentTrend,
     premiumDiscountLevel,
     killZone,

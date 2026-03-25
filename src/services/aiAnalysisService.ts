@@ -68,6 +68,7 @@ export interface AIAnalysisResponse {
   result: AIAnalysisResult | null;
   error: string | null;
   smcData: SMCAnalysisResult;
+  confluenceScore: number;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -121,6 +122,62 @@ function buildIndicatorSnapshot(candles: OHLCCandle[]): IndicatorSnapshot {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Confluence Score
+// ────────────────────────────────────────────────────────────────────────────
+
+export function calculateConfluenceScore(
+  smcData: SMCAnalysisResult,
+  indicators: IndicatorSnapshot,
+  candles: OHLCCandle[]
+): number {
+  let score = 0;
+  const latestClose = candles[candles.length - 1]?.close ?? 0;
+  const atr = indicators.atr ?? 1;
+  const trend = smcData.currentTrend;
+
+  // +20: price near OB (within ATR)
+  const nearOB = smcData.orderBlocks.some(
+    ob => Math.abs(latestClose - (ob.high + ob.low) / 2) < atr
+  );
+  if (nearOB) score += 20;
+
+  // +15: unfilled FVG nearby (within ATR)
+  const nearFVG = smcData.fairValueGaps.some(
+    fvg => latestClose >= fvg.low - atr && latestClose <= fvg.top + atr
+  );
+  if (nearFVG) score += 15;
+
+  // +15: RSI aligned with bias
+  if (indicators.rsi !== null) {
+    if (trend === 'bullish' && indicators.rsi > 50) score += 15;
+    else if (trend === 'bearish' && indicators.rsi < 50) score += 15;
+  }
+
+  // +15: EMA alignment with bias
+  if (indicators.ema20 !== null && indicators.ema50 !== null) {
+    if (trend === 'bullish' && indicators.ema20 > indicators.ema50) score += 15;
+    else if (trend === 'bearish' && indicators.ema20 < indicators.ema50) score += 15;
+  }
+
+  // +10: Recent BOS in bias direction
+  const recentBOS = smcData.structureBreaks.slice(-3).some(
+    sb => sb.direction === trend
+  );
+  if (recentBOS) score += 10;
+
+  // +10: In kill zone
+  if (smcData.killZone !== null) score += 10;
+
+  // +5: Price in discount zone for long / premium for short
+  if (smcData.premiumDiscountLevel > 0) {
+    if (trend === 'bullish' && latestClose < smcData.premiumDiscountLevel) score += 5;
+    else if (trend === 'bearish' && latestClose > smcData.premiumDiscountLevel) score += 5;
+  }
+
+  return Math.min(100, score);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Prompt Builder
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -136,7 +193,8 @@ function n(val: number | null, decimals = 2): string {
 function buildPrompt(
   request: AIAnalysisRequest,
   smcData: SMCAnalysisResult,
-  indicators: IndicatorSnapshot
+  indicators: IndicatorSnapshot,
+  confluenceScore: number
 ): string {
   const { candles, symbol, exchange, interval } = request;
   const latestCandle = candles[candles.length - 1];
@@ -176,6 +234,11 @@ function buildPrompt(
     `${l.type === 'equal_highs' ? 'EQH' : 'EQL'} @ ${l.price.toFixed(2)} (${l.touchCount} touches)`
   ).join('; ') || 'None detected';
 
+  // Breaker blocks
+  const bbSummary = smcData.breakerBlocks.slice(0, 3).map(bb =>
+    `${bb.type.toUpperCase()} BB: ${bb.low.toFixed(2)}-${bb.high.toFixed(2)}`
+  ).join('; ') || 'None detected';
+
   // Price action patterns
   const patternSummary = smcData.priceActionPatterns.slice(-5).map(p =>
     `${p.type} @ ${p.price.toFixed(2)}`
@@ -190,6 +253,7 @@ function buildPrompt(
 CURRENT PRICE: ${latestClose.toFixed(2)}
 DATE/TIME: ${dateStr}
 KILL ZONE: ${smcData.killZone ?? 'None'}
+CONFLUENCE SCORE: ${confluenceScore}/100
 
 --- OHLCV SUMMARY (last 20 candles) ---
 ${candleRows}
@@ -204,6 +268,7 @@ ATR(14): ${n(indicators.atr)}
 --- SMC/ICT STRUCTURES DETECTED ---
 Trend: ${smcData.currentTrend}
 Order Blocks: ${obSummary}
+Breaker Blocks: ${bbSummary}
 Fair Value Gaps: ${fvgSummary}
 Structure Breaks: ${sbSummary}
 Liquidity Levels: ${liqSummary}
@@ -254,7 +319,7 @@ Respond with ONLY this exact JSON schema (no markdown, no extra text):
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Claude API Call
+// Helpers
 // ────────────────────────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are an expert technical analyst specializing in SMC (Smart Money Concepts) and ICT (Inner Circle Trader) methodology. Analyze the provided chart data and return ONLY a valid JSON object matching the specified schema. Do not include any text outside the JSON.`;
@@ -263,6 +328,40 @@ function getApiKey(): string | null {
   return localStorage.getItem(STORAGE_KEYS.CLAUDE_API_KEY);
 }
 
+function getModel(): string {
+  return localStorage.getItem(STORAGE_KEYS.CLAUDE_MODEL) ?? 'claude-sonnet-4-6';
+}
+
+/** Extract the first complete JSON object from a string (handles extra text/markdown). */
+function extractJSON(text: string): string {
+  const first = text.indexOf('{');
+  const last  = text.lastIndexOf('}');
+  if (first !== -1 && last !== -1 && last > first) {
+    return text.slice(first, last + 1);
+  }
+  return text.trim();
+}
+
+/** Fetch with retry on 429 / 5xx — max 2 retries, 1 s delay per attempt. */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 2
+): Promise<Response> {
+  let lastResponse!: Response;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (attempt > 0) await new Promise(r => setTimeout(r, 1000 * attempt));
+    lastResponse = await fetch(url, options);
+    const { status } = lastResponse;
+    if (status !== 429 && status < 500) break;
+  }
+  return lastResponse;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Main export
+// ────────────────────────────────────────────────────────────────────────────
+
 export async function runAIAnalysis(
   request: AIAnalysisRequest,
   onProgress?: (status: string) => void
@@ -270,7 +369,7 @@ export async function runAIAnalysis(
   const apiKey = getApiKey();
   if (!apiKey) {
     const smcData = runFullSMCAnalysis(request.candles);
-    return { result: null, error: 'NO_API_KEY', smcData };
+    return { result: null, error: 'NO_API_KEY', smcData, confluenceScore: 0 };
   }
 
   // Run local detection first (sync, fast)
@@ -280,13 +379,16 @@ export async function runAIAnalysis(
   // Build indicator snapshot
   const indicators = buildIndicatorSnapshot(request.candles);
 
+  // Compute confluence score locally
+  const confluenceScore = calculateConfluenceScore(smcData, indicators, request.candles);
+
   // Build prompt
-  const userPrompt = buildPrompt(request, smcData, indicators);
+  const userPrompt = buildPrompt(request, smcData, indicators, confluenceScore);
 
   onProgress?.('Consulting Claude AI...');
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetchWithRetry('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': apiKey,
@@ -294,7 +396,7 @@ export async function runAIAnalysis(
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model: getModel(),
         max_tokens: 1024,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userPrompt }],
@@ -308,26 +410,23 @@ export async function runAIAnalysis(
         500: 'Claude API server error. Try again.',
       };
       const msg = errorMap[response.status] ?? `Claude API error (${response.status}). Try again.`;
-      return { result: null, error: msg, smcData };
+      return { result: null, error: msg, smcData, confluenceScore };
     }
 
     const data = await response.json();
     const rawText: string = data?.content?.[0]?.text ?? '';
 
-    // Strip markdown code fences if Claude wraps the JSON
-    const cleaned = rawText
-      .replace(/^```(?:json)?\s*/i, '')
-      .replace(/\s*```\s*$/, '')
-      .trim();
+    // Robust JSON extraction: find first { to last } regardless of surrounding text
+    const cleaned = extractJSON(rawText);
 
     const parsed: AIAnalysisResult = JSON.parse(cleaned);
-    return { result: parsed, error: null, smcData };
+    return { result: parsed, error: null, smcData, confluenceScore };
 
   } catch (err: any) {
     const isParseError = err instanceof SyntaxError;
     const msg = isParseError
       ? 'AI returned an unexpected response. Try again.'
       : `Network error: ${err?.message ?? 'Unknown error'}`;
-    return { result: null, error: msg, smcData };
+    return { result: null, error: msg, smcData, confluenceScore };
   }
 }
