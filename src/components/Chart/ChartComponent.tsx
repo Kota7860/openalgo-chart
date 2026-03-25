@@ -38,6 +38,8 @@ import { calculateHilengaMilenga } from '../../utils/indicators/hilengaMilenga';
 import { calculateRiskPosition, autoDetectSide } from '../../utils/indicators/riskCalculator';
 import { createRiskCalculatorPrimitive, removeRiskCalculatorPrimitive } from '../../utils/indicators/riskCalculatorChart';
 import { TPOProfilePrimitive } from '../../plugins/tpo-profile/TPOProfilePrimitive';
+import { SMCOverlayPrimitive } from '../../plugins/smc-overlays/SMCOverlayPrimitive';
+import type { SMCOverlayData, SMCOverlayOptions } from '../../plugins/smc-overlays/SMCOverlayPrimitive';
 import { intervalToSeconds } from '../../utils/timeframes';
 import { logger } from '../../utils/logger.js';
 
@@ -368,6 +370,7 @@ const ChartComponent = forwardRef<any, ChartComponentProps>(({
     });
     const priceScaleTimerRef = useRef(null); // Ref for the candle countdown timer
     const tpoProfileRef = useRef(null); // Ref for TPO Profile primitive
+    const smcOverlayRef = useRef(null); // Ref for SMC Overlay primitive
     const oiPriceLinesRef = useRef({ maxCallOI: null, maxPutOI: null, maxPain: null }); // Refs for OI price lines
     const firstCandleSeriesRef = useRef([]); // Array of line series for all days' high/low
     const priceActionRangeSeriesRef = useRef([]); // Array of line series for PAR support/resistance
@@ -630,6 +633,41 @@ const ChartComponent = forwardRef<any, ChartComponentProps>(({
                 return lastData.close ?? lastData.value;
             }
             return null;
+        },
+        getData: () => {
+            if (!dataRef.current || dataRef.current.length === 0) return [];
+            return dataRef.current.map((c: any) => ({
+                time: c.time,
+                open: c.open,
+                high: c.high,
+                low: c.low,
+                close: c.close ?? c.value,
+                volume: c.volume,
+            }));
+        },
+        setSMCOverlayData: (data: SMCOverlayData) => {
+            if (!mainSeriesRef.current) return;
+            if (!smcOverlayRef.current) {
+                const primitive = new SMCOverlayPrimitive();
+                mainSeriesRef.current.attachPrimitive(primitive);
+                smcOverlayRef.current = primitive;
+            }
+            (smcOverlayRef.current as SMCOverlayPrimitive).setData(data);
+        },
+        setSMCOverlayOptions: (opts: Partial<SMCOverlayOptions>) => {
+            if (smcOverlayRef.current) {
+                (smcOverlayRef.current as SMCOverlayPrimitive).setOptions(opts);
+            }
+        },
+        clearSMCOverlay: () => {
+            if (smcOverlayRef.current && mainSeriesRef.current) {
+                try {
+                    mainSeriesRef.current.detachPrimitive(smcOverlayRef.current);
+                } catch (e) {
+                    logger.warn('Error detaching SMC overlay', e);
+                }
+                smcOverlayRef.current = null;
+            }
         },
         toggleTimer: () => {
             if (priceScaleTimerRef.current) {
@@ -2239,6 +2277,10 @@ const ChartComponent = forwardRef<any, ChartComponentProps>(({
                     if (seriesMarkersRef.current) {
                         mainSeriesRef.current.detachPrimitive(seriesMarkersRef.current);
                         seriesMarkersRef.current = null;
+                    }
+                    if (smcOverlayRef.current) {
+                        mainSeriesRef.current.detachPrimitive(smcOverlayRef.current);
+                        smcOverlayRef.current = null;
                     }
                 } catch (error) {
                     logger.warn('Failed to detach primitives', error);

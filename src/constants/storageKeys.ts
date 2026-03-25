@@ -60,6 +60,9 @@ export const STORAGE_KEYS = {
 
   // Sync
   CLOUD_SYNC_DONE: '_cloud_sync_done',
+
+  // AI Analysis
+  CLAUDE_API_KEY: 'claude_api_key',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

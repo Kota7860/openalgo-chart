@@ -2,20 +2,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { FC } from 'react';
 import { BaseModal } from '../shared';
 import styles from './SettingsPopup.module.css';
-import { X, Keyboard } from 'lucide-react';
+import { X, Keyboard, Sparkles } from 'lucide-react';
 import ShortcutsSettings from '../ShortcutsSettings/ShortcutsSettings';
 import { getLogLevel } from '../../utils/logger';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { useKeyboardNav } from '../../hooks/useKeyboardNav';
 
 // Import extracted section components
-import { ScalesSection, OpenAlgoSection, LoggingSection, AppearanceSection, SymbolSection } from './sections';
+import { ScalesSection, OpenAlgoSection, LoggingSection, AppearanceSection, SymbolSection, AISection } from './sections';
 
 // Import constants
 import { DEFAULT_CHART_APPEARANCE, ChartAppearance } from './constants';
 
 type Theme = 'dark' | 'light';
-type SectionId = 'symbol' | 'scales' | 'openalgo' | 'logging' | 'appearance' | 'shortcuts';
+type SectionId = 'symbol' | 'scales' | 'openalgo' | 'logging' | 'appearance' | 'shortcuts' | 'ai';
 
 interface Section {
     id: SectionId;
@@ -189,6 +189,11 @@ const SettingsPopup: FC<SettingsPopupProps> = ({
             )
         },
         {
+            id: 'ai', label: 'AI Analysis', icon: (
+                <Sparkles size={18} />
+            )
+        },
+        {
             id: 'shortcuts', label: 'Keyboard Shortcuts', icon: (
                 <Keyboard size={18} />
             )
@@ -273,6 +278,10 @@ const SettingsPopup: FC<SettingsPopupProps> = ({
                             localAppearance={localAppearance}
                             setLocalAppearance={setLocalAppearance}
                         />
+                    )}
+
+                    {activeSection === 'ai' && (
+                        <AISection />
                     )}
 
                     {activeSection === 'shortcuts' && (
