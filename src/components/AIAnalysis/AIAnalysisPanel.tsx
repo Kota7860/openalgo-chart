@@ -10,7 +10,21 @@ import styles from './AIAnalysisPanel.module.css';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
 import { runAIAnalysis, AIAnalysisResult } from '../../services/aiAnalysisService';
 import { SMCAnalysisResult } from '../../services/smcDetectionService';
-import type { SMCOverlayData, SMCOverlayOptions } from '../../plugins/smc-overlays/SMCOverlayPrimitive';
+import type { SMCOverlayData, SMCOverlayOptions, SMCOverlayColors, DEFAULT_SMC_COLORS } from '../../plugins/smc-overlays/SMCOverlayPrimitive';
+
+function loadStoredColors(): SMCOverlayColors | undefined {
+  try {
+    const s = localStorage.getItem(STORAGE_KEYS.SMC_OVERLAY_COLORS);
+    return s ? JSON.parse(s) : undefined;
+  } catch { return undefined; }
+}
+
+function loadSMCOptions(): Record<string, unknown> {
+  try {
+    const s = localStorage.getItem(STORAGE_KEYS.SMC_SETTINGS);
+    return s ? JSON.parse(s) : {};
+  } catch { return {}; }
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Types
@@ -57,7 +71,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
   const [history, setHistory]             = useState<AnalysisHistoryEntry[]>([]);
   const isRunningRef = useRef(false);
 
-  const [overlayOpts, setOverlayOpts] = useState<SMCOverlayOptions>({
+  const [overlayOpts, setOverlayOpts] = useState<SMCOverlayOptions>(() => ({
     showOrderBlocks: true,
     showFVGs: true,
     showStructureBreaks: true,
@@ -65,7 +79,9 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
     showSwingPoints: true,
     showBreakerBlocks: true,
     showImpulsiveCandles: true,
-  });
+    showLiquiditySweeps: true,
+    colors: loadStoredColors() ?? ({} as SMCOverlayColors),
+  }));
 
   const [statusMsg, setStatusMsg] = useState('');
 
@@ -107,8 +123,9 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
     setStatus('analyzing');
     setStatusMsg('Consulting Claude AI...');
 
+    const smcOpts = loadSMCOptions();
     const response = await runAIAnalysis(
-      { candles, symbol, exchange, interval },
+      { candles, symbol, exchange, interval, smcOptions: smcOpts },
       (msg) => setStatusMsg(msg)
     );
 
@@ -127,6 +144,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
           swingPoints: response.smcData.swingPoints,
           breakerBlocks: response.smcData.breakerBlocks,
           impulsiveCandles: response.smcData.impulsiveCandles,
+          liquiditySweeps: response.smcData.liquiditySweeps,
         };
         chartRef.current.setSMCOverlayData(overlayData);
       }
@@ -507,13 +525,14 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
             <div className={styles.cardTitle}>Chart Overlays</div>
             {(
               [
-                ['showOrderBlocks',     'Order Blocks'],
-                ['showBreakerBlocks',   'Breaker Blocks'],
-                ['showFVGs',            'Fair Value Gaps'],
-                ['showStructureBreaks', 'BOS / ChoCH'],
-                ['showLiquidityLevels', 'Liquidity Levels'],
-                ['showSwingPoints',     'Swing Points'],
-                ['showImpulsiveCandles','Impulse Candles'],
+                ['showOrderBlocks',      'Order Blocks'],
+                ['showBreakerBlocks',    'Breaker Blocks'],
+                ['showFVGs',             'Fair Value Gaps'],
+                ['showStructureBreaks',  'BOS / ChoCH'],
+                ['showLiquidityLevels',  'Liquidity Levels'],
+                ['showLiquiditySweeps',  'Liquidity Sweeps'],
+                ['showSwingPoints',      'Swing Points'],
+                ['showImpulsiveCandles', 'Impulse Candles'],
               ] as [keyof SMCOverlayOptions, string][]
             ).map(([key, label]) => (
               <div key={key} className={styles.toggleRow}>

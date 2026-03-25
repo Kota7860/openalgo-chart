@@ -97,6 +97,29 @@ export interface ImpulsiveCandle {
   bodyRatio: number; // body / full range (0–1)
 }
 
+/** A liquidity sweep: price wick exceeds an EQH/EQL level but closes back on the other side */
+export interface LiquiditySweep {
+  time: number;
+  price: number;          // the liquidity level price that was swept
+  type: 'high_sweep' | 'low_sweep';
+  wickExtreme: number;    // actual high (for high_sweep) or low (for low_sweep)
+  recovered: boolean;     // true when close is back on originating side
+  strength: 'strong' | 'weak';
+}
+
+/** User-configurable SMC detection parameters */
+export interface SMCDetectionOptions {
+  swingLookback: number;           // bars left/right for swing point detection (default 3)
+  fvgMinGapRatio: number;          // FVG minimum gap as fraction of avg range (default 0.1 = 10%)
+  liquidityTolerancePct: number;   // tolerance for grouping equal highs/lows (default 0.003 = 0.3%)
+}
+
+export const DEFAULT_SMC_OPTIONS: SMCDetectionOptions = {
+  swingLookback: 3,
+  fvgMinGapRatio: 0.1,
+  liquidityTolerancePct: 0.003,
+};
+
 export interface SMCAnalysisResult {
   swingPoints: SwingPoint[];
   orderBlocks: OrderBlock[];
@@ -104,6 +127,7 @@ export interface SMCAnalysisResult {
   fairValueGaps: FairValueGap[];
   structureBreaks: StructureBreak[];
   liquidityLevels: LiquidityLevel[];
+  liquiditySweeps: LiquiditySweep[];
   priceActionPatterns: PriceActionPattern[];
   supportResistance: SupportResistanceLevel[];
   impulsiveCandles: ImpulsiveCandle[];
@@ -292,7 +316,10 @@ export function detectBreakerBlocks(candles: OHLCCandle[]): BreakerBlock[] {
 // Fair Value Gaps  (FIX: minimum gap threshold relative to avg candle range)
 // ────────────────────────────────────────────────────────────────────────────
 
-export function detectFairValueGaps(candles: OHLCCandle[]): FairValueGap[] {
+export function detectFairValueGaps(
+  candles: OHLCCandle[],
+  minGapRatio = 0.1       // fraction of avg range (0.1 = 10%)
+): FairValueGap[] {
   const fvgs: FairValueGap[] = [];
   const len = candles.length;
 
@@ -301,7 +328,7 @@ export function detectFairValueGaps(candles: OHLCCandle[]): FairValueGap[] {
   let avgRange = 0;
   for (let k = len - lookback; k < len; k++) avgRange += (candles[k].high - candles[k].low);
   avgRange = avgRange / lookback;
-  const minGapSize = avgRange * 0.1; // 10% of avg range is the minimum gap
+  const minGapSize = avgRange * minGapRatio;
 
   for (let i = 1; i < len - 1; i++) {
     const prev = candles[i - 1];
@@ -460,6 +487,59 @@ export function detectLiquidityLevels(
   }
 
   return levels;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Liquidity Sweeps  (wick exceeds EQH/EQL level but close recovers)
+// ────────────────────────────────────────────────────────────────────────────
+
+export function detectLiquiditySweeps(
+  candles: OHLCCandle[],
+  liquidityLevels?: LiquidityLevel[],
+  tolerance = 0.003
+): LiquiditySweep[] {
+  const levels = liquidityLevels ?? detectLiquidityLevels(candles, tolerance);
+  const sweeps: LiquiditySweep[] = [];
+
+  for (const level of levels) {
+    if (level.times.length === 0) continue;
+    const lastLevelTime = Math.max(...level.times);
+
+    // Only check candles after the last touch of this level
+    for (const c of candles) {
+      if (c.time <= lastLevelTime) continue;
+
+      if (level.type === 'equal_highs') {
+        // High sweep: wick exceeds EQH but close is back below
+        if (c.high > level.price && c.close < level.price) {
+          sweeps.push({
+            time: c.time,
+            price: level.price,
+            type: 'high_sweep',
+            wickExtreme: c.high,
+            recovered: true,
+            strength: c.close < level.price * (1 - tolerance) ? 'strong' : 'weak',
+          });
+          break; // one sweep per level
+        }
+      } else {
+        // Low sweep: wick drops below EQL but close is back above
+        if (c.low < level.price && c.close > level.price) {
+          sweeps.push({
+            time: c.time,
+            price: level.price,
+            type: 'low_sweep',
+            wickExtreme: c.low,
+            recovered: true,
+            strength: c.close > level.price * (1 + tolerance) ? 'strong' : 'weak',
+          });
+          break;
+        }
+      }
+    }
+  }
+
+  return sweeps.sort((a, b) => a.time - b.time).slice(-10);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -661,13 +741,19 @@ export function getCurrentKillZone(
 // Full SMC Analysis Orchestrator
 // ────────────────────────────────────────────────────────────────────────────
 
-export function runFullSMCAnalysis(candles: OHLCCandle[]): SMCAnalysisResult {
-  const swingPoints       = detectSwingPoints(candles);
+export function runFullSMCAnalysis(
+  candles: OHLCCandle[],
+  options: Partial<SMCDetectionOptions> = {}
+): SMCAnalysisResult {
+  const opts: SMCDetectionOptions = { ...DEFAULT_SMC_OPTIONS, ...options };
+
+  const swingPoints       = detectSwingPoints(candles, opts.swingLookback, opts.swingLookback);
   const orderBlocks       = detectOrderBlocks(candles, swingPoints);
   const breakerBlocks     = detectBreakerBlocks(candles);
-  const fairValueGaps     = detectFairValueGaps(candles);
+  const fairValueGaps     = detectFairValueGaps(candles, opts.fvgMinGapRatio);
   const structureBreaks   = detectStructureBreaks(candles, swingPoints);
-  const liquidityLevels   = detectLiquidityLevels(candles);
+  const liquidityLevels   = detectLiquidityLevels(candles, opts.liquidityTolerancePct);
+  const liquiditySweeps   = detectLiquiditySweeps(candles, liquidityLevels, opts.liquidityTolerancePct);
   const priceActionPatterns = detectPriceActionPatterns(candles);
   const supportResistance = detectSupportResistance(candles);
   const impulsiveCandles  = detectImpulsiveCandles(candles);
@@ -703,6 +789,7 @@ export function runFullSMCAnalysis(candles: OHLCCandle[]): SMCAnalysisResult {
     fairValueGaps,
     structureBreaks,
     liquidityLevels,
+    liquiditySweeps,
     priceActionPatterns,
     supportResistance,
     impulsiveCandles,

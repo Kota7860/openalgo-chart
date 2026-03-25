@@ -1,0 +1,242 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--tv-color-platform-background, #1e222d);
+  color: var(--tv-color-text-primary, #d1d4dc);
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--tv-color-border, #363a45);
+  flex-shrink: 0;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: #26a69a;
+  color: #fff;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.addBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--tv-color-brand, #2962ff);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.addBtn:hover { opacity: 0.85; }
+
+.body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.body::-webkit-scrollbar { width: 4px; }
+.body::-webkit-scrollbar-thumb { background: var(--tv-color-border, #363a45); border-radius: 2px; }
+
+/* Form */
+.formCard {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--tv-color-border, #363a45);
+  border-radius: 6px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.formRow {
+  display: flex;
+  gap: 8px;
+}
+
+.formField {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.formField label {
+  font-size: 10px;
+  color: var(--tv-color-text-secondary, #787b86);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.formField input,
+.formField select {
+  background: var(--tv-color-platform-background, #1e222d);
+  border: 1px solid var(--tv-color-border, #363a45);
+  border-radius: 4px;
+  color: var(--tv-color-text-primary, #d1d4dc);
+  font-size: 12px;
+  padding: 5px 7px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.submitBtn {
+  width: 100%;
+  padding: 8px;
+  background: var(--tv-color-brand, #2962ff);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.submitBtn:hover { opacity: 0.85; }
+
+/* Stats row */
+.statsRow {
+  display: flex;
+  gap: 8px;
+}
+
+.statChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: rgba(41,98,255,0.12);
+  color: #2962ff;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.statTriggered {
+  background: rgba(38,166,154,0.12);
+  color: #26a69a;
+}
+
+/* Alert cards */
+.alertCard {
+  border-radius: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--tv-color-border, #363a45);
+  border-left-width: 3px;
+}
+
+.alertActive    { border-left-color: #2962ff; }
+.alertTriggered { border-left-color: #26a69a; background: rgba(38,166,154,0.05); }
+.alertPaused    { border-left-color: #787b86; opacity: 0.7; }
+
+.alertHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.alertInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.alertSymbol {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.alertMeta {
+  font-size: 10px;
+  color: var(--tv-color-text-secondary, #787b86);
+}
+
+.alertActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.actionBtn {
+  background: transparent;
+  border: none;
+  color: var(--tv-color-text-secondary, #787b86);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+}
+.actionBtn:hover { background: rgba(255,255,255,0.06); }
+
+.alertPattern {
+  margin-bottom: 4px;
+}
+
+.patternBadge {
+  display: inline-flex;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.patternBull { background: rgba(38,166,154,0.15); color: #26a69a; }
+.patternBear { background: rgba(239,83,80,0.15);  color: #ef5350; }
+.patternAny  { background: rgba(41,98,255,0.12);  color: #2962ff; }
+
+.triggerMsg {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #26a69a;
+  line-height: 1.4;
+}
+
+.triggerTime {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: var(--tv-color-text-secondary, #787b86);
+}
+
+.emptyHint {
+  text-align: center;
+  color: var(--tv-color-text-secondary, #787b86);
+  font-size: 12px;
+  padding: 20px 0;
+  line-height: 1.6;
+}
+
+.hint {
+  font-size: 10px;
+  color: var(--tv-color-text-secondary, #787b86);
+  text-align: center;
+  margin: 4px 0 0;
+}

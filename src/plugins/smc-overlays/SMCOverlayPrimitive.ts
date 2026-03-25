@@ -22,11 +22,38 @@ import type {
   SwingPoint,
   BreakerBlock,
   ImpulsiveCandle,
+  LiquiditySweep,
 } from '../../services/smcDetectionService';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Public types
 // ────────────────────────────────────────────────────────────────────────────
+
+export interface SMCOverlayColors {
+  obBullishFill:   string;
+  obBullishStroke: string;
+  obBearishFill:   string;
+  obBearishStroke: string;
+  fvgBullish:      string;
+  fvgBearish:      string;
+  bosColor:        string;
+  chochColor:      string;
+  liquidityHigh:   string;
+  liquidityLow:    string;
+}
+
+export const DEFAULT_SMC_COLORS: SMCOverlayColors = {
+  obBullishFill:   'rgba(38,166,154,0.18)',
+  obBullishStroke: 'rgba(38,166,154,0.8)',
+  obBearishFill:   'rgba(239,83,80,0.18)',
+  obBearishStroke: 'rgba(239,83,80,0.8)',
+  fvgBullish:      'rgba(38,166,154,0.12)',
+  fvgBearish:      'rgba(239,83,80,0.12)',
+  bosColor:        '#2962ff',
+  chochColor:      '#ff9800',
+  liquidityHigh:   '#ef5350',
+  liquidityLow:    '#26a69a',
+};
 
 export interface SMCOverlayData {
   orderBlocks: OrderBlock[];
@@ -36,6 +63,7 @@ export interface SMCOverlayData {
   swingPoints: SwingPoint[];
   breakerBlocks: BreakerBlock[];
   impulsiveCandles: ImpulsiveCandle[];
+  liquiditySweeps: LiquiditySweep[];
 }
 
 export interface SMCOverlayOptions {
@@ -46,6 +74,8 @@ export interface SMCOverlayOptions {
   showSwingPoints: boolean;
   showBreakerBlocks: boolean;
   showImpulsiveCandles: boolean;
+  showLiquiditySweeps: boolean;
+  colors: SMCOverlayColors;
 }
 
 const DEFAULT_DATA: SMCOverlayData = {
@@ -56,6 +86,7 @@ const DEFAULT_DATA: SMCOverlayData = {
   swingPoints: [],
   breakerBlocks: [],
   impulsiveCandles: [],
+  liquiditySweeps: [],
 };
 
 const DEFAULT_OPTIONS: SMCOverlayOptions = {
@@ -66,6 +97,8 @@ const DEFAULT_OPTIONS: SMCOverlayOptions = {
   showSwingPoints: true,
   showBreakerBlocks: true,
   showImpulsiveCandles: true,
+  showLiquiditySweeps: true,
+  colors: DEFAULT_SMC_COLORS,
 };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -97,6 +130,7 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
       const series    = src._series;
       const data      = src._data;
       const opts      = src._options;
+      const clr       = opts.colors;
 
       // Visible time range for frustum culling
       const visibleRange = timeScale.getVisibleRange();
@@ -115,18 +149,13 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
         return c === null ? null : c * verticalPixelRatio;
       };
 
-      // Time culling: is any part of this time span visible?
-      const timeVisible = (start: number, end: number) =>
-        end >= fromTime && start <= toTime;
-
-      // Price culling: is any part of this price range visible?
+      // Time culling helpers
+      const timeVisible = (start: number, end: number) => end >= fromTime && start <= toTime;
       const priceVisible = (high: number, low: number) => {
         const yH = py(high);
         const yL = py(low);
-        if (yH === null || yL === null) return true; // assume visible if can't determine
-        const top    = Math.min(yH, yL);
-        const bottom = Math.max(yH, yL);
-        return bottom >= 0 && top <= bitmapSize.height;
+        if (yH === null || yL === null) return true;
+        return Math.max(yH, yL) >= 0 && Math.min(yH, yL) <= bitmapSize.height;
       };
 
       ctx.save();
@@ -141,8 +170,7 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           const barW = Math.max(4 * horizontalPixelRatio, 2);
           ctx.save();
           ctx.fillStyle = ic.direction === 'bullish'
-            ? 'rgba(38,166,154,0.3)'
-            : 'rgba(239,83,80,0.3)';
+            ? 'rgba(38,166,154,0.3)' : 'rgba(239,83,80,0.3)';
           ctx.fillRect(x - barW / 2, 0, barW, bitmapSize.height);
           ctx.restore();
         }
@@ -159,25 +187,20 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           const yL = py(ob.low);
           if (x1 === null || yH === null || yL === null) continue;
 
-          const x2 = tx(ob.endTime) ?? bitmapSize.width;
+          const x2     = tx(ob.endTime) ?? bitmapSize.width;
           const xStart = Math.min(x1, x2);
           const width  = Math.max(Math.abs(x2 - x1), 4);
           const top    = Math.min(yH, yL);
           const height = Math.max(Math.abs(yH - yL), 2);
 
-          if (ob.type === 'bullish') {
-            ctx.fillStyle = 'rgba(38,166,154,0.18)';
-            ctx.strokeStyle = 'rgba(38,166,154,0.8)';
-          } else {
-            ctx.fillStyle = 'rgba(239,83,80,0.18)';
-            ctx.strokeStyle = 'rgba(239,83,80,0.8)';
-          }
+          ctx.fillStyle   = ob.type === 'bullish' ? clr.obBullishFill   : clr.obBearishFill;
+          ctx.strokeStyle = ob.type === 'bullish' ? clr.obBullishStroke : clr.obBearishStroke;
 
           ctx.fillRect(xStart, top, width, height);
           ctx.lineWidth = 1 * horizontalPixelRatio;
           ctx.strokeRect(xStart, top, width, height);
 
-          ctx.fillStyle = ob.type === 'bullish' ? 'rgba(38,166,154,0.9)' : 'rgba(239,83,80,0.9)';
+          ctx.fillStyle = ob.type === 'bullish' ? clr.obBullishStroke : clr.obBearishStroke;
           ctx.font = `${10 * horizontalPixelRatio}px monospace`;
           ctx.fillText('OB', xStart + 3 * horizontalPixelRatio, top + 12 * verticalPixelRatio);
         }
@@ -194,21 +217,18 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           const yL = py(bb.low);
           if (x1 === null || yH === null || yL === null) continue;
 
-          const x2 = tx(bb.endTime) ?? bitmapSize.width;
-          const xStart = Math.min(x1, x2);
-          const width  = Math.max(Math.abs(x2 - x1), 4);
-          const top    = Math.min(yH, yL);
-          const height = Math.max(Math.abs(yH - yL), 2);
+          const x2      = tx(bb.endTime) ?? bitmapSize.width;
+          const xStart  = Math.min(x1, x2);
+          const width   = Math.max(Math.abs(x2 - x1), 4);
+          const top     = Math.min(yH, yL);
+          const height  = Math.max(Math.abs(yH - yL), 2);
 
-          // Bullish breaker: green dashed border + backward diagonal hatch
-          // Bearish breaker: red dashed border + backward diagonal hatch
-          const isBull = bb.type === 'bullish';
+          const isBull      = bb.type === 'bullish';
           const fillColor   = isBull ? 'rgba(38,166,154,0.1)'  : 'rgba(239,83,80,0.1)';
-          const borderColor = isBull ? 'rgba(38,166,154,0.9)'  : 'rgba(239,83,80,0.9)';
+          const borderColor = isBull ? clr.obBullishStroke : clr.obBearishStroke;
           const hatchColor  = isBull ? 'rgba(38,166,154,0.35)' : 'rgba(239,83,80,0.35)';
           const label       = isBull ? 'BB↑' : 'BB↓';
 
-          // Fill
           ctx.fillStyle = fillColor;
           ctx.fillRect(xStart, top, width, height);
 
@@ -237,7 +257,6 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           ctx.setLineDash([]);
           ctx.restore();
 
-          // Label
           ctx.fillStyle = borderColor;
           ctx.font = `${10 * horizontalPixelRatio}px monospace`;
           ctx.fillText(label, xStart + 3 * horizontalPixelRatio, top + 12 * verticalPixelRatio);
@@ -261,8 +280,9 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           const width  = bitmapSize.width - x1;
           if (width <= 0) continue;
 
-          ctx.fillStyle = fvg.type === 'bullish' ? 'rgba(38,166,154,0.12)' : 'rgba(239,83,80,0.12)';
-          ctx.strokeStyle = fvg.type === 'bullish' ? 'rgba(38,166,154,0.5)' : 'rgba(239,83,80,0.5)';
+          const isBull = fvg.type === 'bullish';
+          ctx.fillStyle   = isBull ? clr.fvgBullish : clr.fvgBearish;
+          ctx.strokeStyle = isBull ? clr.obBullishStroke : clr.obBearishStroke;
 
           ctx.fillRect(x1, top, width, height);
 
@@ -271,7 +291,7 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           ctx.beginPath();
           ctx.rect(x1, top, width, height);
           ctx.clip();
-          ctx.strokeStyle = fvg.type === 'bullish' ? 'rgba(38,166,154,0.3)' : 'rgba(239,83,80,0.3)';
+          ctx.strokeStyle = isBull ? 'rgba(38,166,154,0.3)' : 'rgba(239,83,80,0.3)';
           ctx.lineWidth = 0.5 * horizontalPixelRatio;
           const step = 8 * horizontalPixelRatio;
           for (let hx = x1 - height; hx < x1 + width + height; hx += step) {
@@ -282,14 +302,13 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           }
           ctx.restore();
 
-          // Border lines (top and bottom)
           ctx.lineWidth = 1 * horizontalPixelRatio;
           ctx.beginPath();
-          ctx.moveTo(x1, top); ctx.lineTo(x1 + width, top);
+          ctx.moveTo(x1, top);         ctx.lineTo(x1 + width, top);
           ctx.moveTo(x1, top + height); ctx.lineTo(x1 + width, top + height);
           ctx.stroke();
 
-          ctx.fillStyle = fvg.type === 'bullish' ? 'rgba(38,166,154,0.9)' : 'rgba(239,83,80,0.9)';
+          ctx.fillStyle = isBull ? clr.obBullishStroke : clr.obBearishStroke;
           ctx.font = `${9 * horizontalPixelRatio}px monospace`;
           ctx.fillText('FVG', x1 + 3 * horizontalPixelRatio, top + 11 * verticalPixelRatio);
         }
@@ -305,8 +324,8 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           if (y < 0 || y > bitmapSize.height) continue;
 
           ctx.save();
-          ctx.lineWidth = 1.5 * horizontalPixelRatio;
-          ctx.strokeStyle = sb.type === 'BOS' ? '#2962ff' : '#ff9800';
+          ctx.lineWidth   = 1.5 * horizontalPixelRatio;
+          ctx.strokeStyle = sb.type === 'BOS' ? clr.bosColor : clr.chochColor;
           ctx.setLineDash([6 * horizontalPixelRatio, 4 * horizontalPixelRatio]);
           ctx.beginPath();
           ctx.moveTo(xStart, y);
@@ -314,7 +333,7 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           ctx.stroke();
           ctx.setLineDash([]);
 
-          ctx.fillStyle = sb.type === 'BOS' ? '#2962ff' : '#ff9800';
+          ctx.fillStyle = sb.type === 'BOS' ? clr.bosColor : clr.chochColor;
           ctx.font = `bold ${9 * horizontalPixelRatio}px monospace`;
           const label = `${sb.type} ${sb.direction === 'bullish' ? '▲' : '▼'}`;
           ctx.fillText(label, bitmapSize.width - 60 * horizontalPixelRatio, y - 4 * verticalPixelRatio);
@@ -326,12 +345,11 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
       if (opts.showLiquidityLevels) {
         for (const ll of data.liquidityLevels) {
           const y = py(ll.price);
-          if (y === null) continue;
-          if (y < 0 || y > bitmapSize.height) continue;
+          if (y === null || y < 0 || y > bitmapSize.height) continue;
 
           const isEQH = ll.type === 'equal_highs';
           ctx.save();
-          ctx.strokeStyle = isEQH ? '#ef5350' : '#26a69a';
+          ctx.strokeStyle = isEQH ? clr.liquidityHigh : clr.liquidityLow;
           ctx.lineWidth = 1 * horizontalPixelRatio;
           ctx.setLineDash([2 * horizontalPixelRatio, 4 * horizontalPixelRatio]);
           ctx.beginPath();
@@ -340,9 +358,9 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           ctx.stroke();
           ctx.setLineDash([]);
 
-          // Price label on the RIGHT side
+          // Right-aligned price label
           const priceLabel = `${isEQH ? 'EQH' : 'EQL'} @ ${ll.price.toFixed(2)} (${ll.touchCount}x)`;
-          ctx.fillStyle = isEQH ? '#ef5350' : '#26a69a';
+          ctx.fillStyle = isEQH ? clr.liquidityHigh : clr.liquidityLow;
           ctx.font = `${9 * horizontalPixelRatio}px monospace`;
           const labelWidth = ctx.measureText(priceLabel).width;
           ctx.fillText(
@@ -354,6 +372,41 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
         }
       }
 
+      // ── Liquidity Sweeps ─────────────────────────────────────────────────
+      if (opts.showLiquiditySweeps) {
+        for (const sw of data.liquiditySweeps) {
+          if (!timeVisible(sw.time, sw.time)) continue;
+          const x = tx(sw.time);
+          const y = py(sw.price);
+          if (x === null || y === null || y < 0 || y > bitmapSize.height) continue;
+
+          const r = 5 * horizontalPixelRatio;
+          const isHigh = sw.type === 'high_sweep';
+          const color  = isHigh ? clr.liquidityHigh : clr.liquidityLow;
+
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.fillStyle   = sw.strength === 'strong' ? color : color + '88';
+          ctx.lineWidth   = 1.5 * horizontalPixelRatio;
+
+          // Diamond marker
+          ctx.beginPath();
+          ctx.moveTo(x,     y - r);
+          ctx.lineTo(x + r, y);
+          ctx.lineTo(x,     y + r);
+          ctx.lineTo(x - r, y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+
+          // Label
+          ctx.fillStyle = color;
+          ctx.font = `bold ${8 * horizontalPixelRatio}px monospace`;
+          ctx.fillText(isHigh ? 'SWPH' : 'SWPL', x + r + 2 * horizontalPixelRatio, y + 3 * verticalPixelRatio);
+          ctx.restore();
+        }
+      }
+
       // ── Swing Points ─────────────────────────────────────────────────────
       if (opts.showSwingPoints) {
         const sz = 6 * horizontalPixelRatio;
@@ -361,8 +414,7 @@ class SMCPaneRenderer implements IPrimitivePaneRenderer {
           if (!timeVisible(sw.time, sw.time)) continue;
           const x = tx(sw.time);
           const y = py(sw.price);
-          if (x === null || y === null) continue;
-          if (y < 0 || y > bitmapSize.height) continue;
+          if (x === null || y === null || y < 0 || y > bitmapSize.height) continue;
 
           ctx.save();
           ctx.beginPath();
@@ -411,7 +463,7 @@ class SMCPaneView implements IPrimitivePaneView {
 // ────────────────────────────────────────────────────────────────────────────
 
 export class SMCOverlayPrimitive {
-  _data: SMCOverlayData = { ...DEFAULT_DATA };
+  _data: SMCOverlayData    = { ...DEFAULT_DATA };
   _options: SMCOverlayOptions = { ...DEFAULT_OPTIONS };
   _chart: IChartApi | null = null;
   _series: ISeriesApi<keyof SeriesOptionsMap> | null = null;

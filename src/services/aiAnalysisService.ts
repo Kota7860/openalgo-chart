@@ -26,6 +26,7 @@ export interface AIAnalysisRequest {
   symbol: string;
   exchange: string;
   interval: string;
+  smcOptions?: Record<string, unknown>;
 }
 
 export interface AIAnalysisResult {
@@ -130,9 +131,14 @@ export function calculateConfluenceScore(
   indicators: IndicatorSnapshot,
   candles: OHLCCandle[]
 ): number {
+  if (!candles || candles.length === 0) return 0;
+  const lastCandle = candles[candles.length - 1];
+  if (!lastCandle || !isFinite(lastCandle.close)) return 0;
+
   let score = 0;
-  const latestClose = candles[candles.length - 1]?.close ?? 0;
-  const atr = indicators.atr ?? 1;
+  const latestClose = lastCandle.close;
+  const atr = (indicators.atr != null && isFinite(indicators.atr) && indicators.atr > 0)
+    ? indicators.atr : 1;
   const trend = smcData.currentTrend;
 
   // +20: price near OB (within ATR)
@@ -174,7 +180,8 @@ export function calculateConfluenceScore(
     else if (trend === 'bearish' && latestClose > smcData.premiumDiscountLevel) score += 5;
   }
 
-  return Math.min(100, score);
+  const result = Math.min(100, score);
+  return isNaN(result) ? 0 : result;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -374,7 +381,7 @@ export async function runAIAnalysis(
 
   // Run local detection first (sync, fast)
   onProgress?.('Running SMC detection...');
-  const smcData = runFullSMCAnalysis(request.candles);
+  const smcData = runFullSMCAnalysis(request.candles, (request.smcOptions ?? {}) as any);
 
   // Build indicator snapshot
   const indicators = buildIndicatorSnapshot(request.candles);

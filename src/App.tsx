@@ -71,6 +71,7 @@ const ANNScanner = lazy(() => import('./components/ANNScanner/ANNScanner'));
 const AIAnalysisPanel  = lazy(() => import('./components/AIAnalysis/AIAnalysisPanel'));
 const MTFBiasPanel     = lazy(() => import('./components/MTFBias/MTFBiasPanel'));
 const TradeJournalPanel = lazy(() => import('./components/TradeJournal/TradeJournalPanel'));
+const SMCAlertPanel     = lazy(() => import('./components/SMCAlerts/SMCAlertPanel'));
 const ChartTemplatesDialog = lazy(() => import('./components/ChartTemplates/ChartTemplatesDialog'));
 const ShortcutsSettings = lazy(() => import('./components/ShortcutsSettings/ShortcutsSettings'));
 const IndicatorSettingsDialog = lazy(() => import('./components/IndicatorSettings/IndicatorSettingsDialog'));
@@ -2174,6 +2175,14 @@ function AppContent({ isAuthenticated, setIsAuthenticated }) {
                 onOverlayDataReady={() => {
                   // Overlay is set directly inside AIAnalysisPanel via chartRef
                 }}
+              />
+            </Suspense>
+          ) : activeRightPanel === 'smc_alerts' ? (
+            <Suspense fallback={<div style={{ padding: 20 }}>Loading SMC Alerts...</div>}>
+              <SMCAlertPanel
+                symbol={currentSymbol}
+                exchange={currentExchange}
+                interval={currentInterval}
               />
             </Suspense>
           ) : activeRightPanel === 'mtf_bias' ? (

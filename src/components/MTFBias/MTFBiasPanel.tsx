@@ -37,10 +37,12 @@ const MTFBiasPanel: React.FC<MTFBiasPanelProps> = ({ symbol, exchange }) => {
   );
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isLoading, setIsLoading]     = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
+  const abortRef     = useRef<AbortController | null>(null);
+  const isLoadingRef = useRef(false);
 
   const fetchAll = useCallback(async () => {
-    if (isLoading) return;
+    if (isLoadingRef.current) return;
+    isLoadingRef.current = true;
     setIsLoading(true);
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -89,7 +91,8 @@ const MTFBiasPanel: React.FC<MTFBiasPanelProps> = ({ symbol, exchange }) => {
     setRows(updated);
     setLastUpdated(new Date().toLocaleTimeString());
     setIsLoading(false);
-  }, [symbol, exchange, isLoading]);
+    isLoadingRef.current = false;
+  }, [symbol, exchange]);
 
   // Auto-fetch when symbol/exchange changes
   useEffect(() => {

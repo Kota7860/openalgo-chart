@@ -77,7 +77,9 @@ const TradeJournalPanel: React.FC<TradeJournalPanelProps> = ({ symbol, exchange 
     if (isNaN(entry) || isNaN(exit) || isNaN(qty) || qty <= 0) return;
 
     const rawPnl    = formDir === 'long' ? (exit - entry) * qty : (entry - exit) * qty;
-    const pnlPct    = ((exit - entry) / entry) * 100 * (formDir === 'short' ? -1 : 1);
+    const pnlPct    = formDir === 'long'
+      ? ((exit - entry) / entry) * 100
+      : ((entry - exit) / entry) * 100;
     const rr        = computeRR(entry, exit, stop, formDir);
 
     const newTrade: TradeEntry = {
