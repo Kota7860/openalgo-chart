@@ -60,6 +60,15 @@ export const STORAGE_KEYS = {
 
   // Sync
   CLOUD_SYNC_DONE: '_cloud_sync_done',
+
+  // AI Analysis
+  CLAUDE_API_KEY: 'claude_api_key',
+  CLAUDE_MODEL: 'claude_model',
+
+  // SMC Settings
+  SMC_SETTINGS: 'tv_smc_settings',
+  SMC_ALERTS: 'tv_smc_alerts',
+  SMC_OVERLAY_COLORS: 'tv_smc_overlay_colors',
 } as const;
 
 export type StorageKey = (typeof STORAGE_KEYS)[keyof typeof STORAGE_KEYS];

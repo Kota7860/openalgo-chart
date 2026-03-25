@@ -68,6 +68,10 @@ import CompareOptionsDialog from './components/Chart/CompareOptionsDialog';
 const SectorHeatmapModal = lazy(() => import('./components/SectorHeatmap/SectorHeatmapModal'));
 const DepthOfMarket = lazy(() => import('./components/DepthOfMarket/DepthOfMarket'));
 const ANNScanner = lazy(() => import('./components/ANNScanner/ANNScanner'));
+const AIAnalysisPanel  = lazy(() => import('./components/AIAnalysis/AIAnalysisPanel'));
+const MTFBiasPanel     = lazy(() => import('./components/MTFBias/MTFBiasPanel'));
+const TradeJournalPanel = lazy(() => import('./components/TradeJournal/TradeJournalPanel'));
+const SMCAlertPanel     = lazy(() => import('./components/SMCAlerts/SMCAlertPanel'));
 const ChartTemplatesDialog = lazy(() => import('./components/ChartTemplates/ChartTemplatesDialog'));
 const ShortcutsSettings = lazy(() => import('./components/ShortcutsSettings/ShortcutsSettings'));
 const IndicatorSettingsDialog = lazy(() => import('./components/IndicatorSettings/IndicatorSettingsDialog'));
@@ -2159,6 +2163,40 @@ function AppContent({ isAuthenticated, setIsAuthenticated }) {
                 onStateChange={setAnnScannerState as any}
                 onStartScan={startAnnScan}
                 onCancelScan={cancelAnnScan}
+              />
+            </Suspense>
+          ) : activeRightPanel === 'ai_analysis' ? (
+            <Suspense fallback={<div style={{ padding: 20 }}>Loading AI Analysis...</div>}>
+              <AIAnalysisPanel
+                symbol={currentSymbol}
+                exchange={currentExchange}
+                interval={currentInterval}
+                chartRef={getChartRef(activeChartId) as React.RefObject<any>}
+                onOverlayDataReady={() => {
+                  // Overlay is set directly inside AIAnalysisPanel via chartRef
+                }}
+              />
+            </Suspense>
+          ) : activeRightPanel === 'smc_alerts' ? (
+            <Suspense fallback={<div style={{ padding: 20 }}>Loading SMC Alerts...</div>}>
+              <SMCAlertPanel
+                symbol={currentSymbol}
+                exchange={currentExchange}
+                interval={currentInterval}
+              />
+            </Suspense>
+          ) : activeRightPanel === 'mtf_bias' ? (
+            <Suspense fallback={<div style={{ padding: 20 }}>Loading MTF Bias...</div>}>
+              <MTFBiasPanel
+                symbol={currentSymbol}
+                exchange={currentExchange}
+              />
+            </Suspense>
+          ) : activeRightPanel === 'trade_journal' ? (
+            <Suspense fallback={<div style={{ padding: 20 }}>Loading Trade Journal...</div>}>
+              <TradeJournalPanel
+                symbol={currentSymbol}
+                exchange={currentExchange}
               />
             </Suspense>
           ) : activeRightPanel === 'dom' ? (
