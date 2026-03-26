@@ -60,7 +60,10 @@ export type IndicatorType =
   | 'hma'
   | 'roc'
   | 'psar'
-  | 'vwap_bands';
+  | 'vwap_bands'
+  | 'candle_patterns'
+  | 'squeeze'
+  | 'linear_regression';
 
 /** Base indicator configuration */
 export interface IndicatorConfig {

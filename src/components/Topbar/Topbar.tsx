@@ -87,6 +87,7 @@ export interface TopbarProps {
     onAddIndicator?: (indicator: string) => void;
     onPineEditorClick?: () => void;
     isPineEditorOpen?: boolean;
+    onIndicatorTemplatesClick?: () => void;
 }
 
 const Topbar: React.FC<TopbarProps> = ({
@@ -100,7 +101,8 @@ const Topbar: React.FC<TopbarProps> = ({
     isReplayMode = false, onSettingsClick, onTemplatesClick, onChartTemplatesClick,
     onStraddleClick, strategyConfig = null,
     onOptionsClick, onHeatmapClick, onAddIndicator,
-    onPineEditorClick, isPineEditorOpen = false
+    onPineEditorClick, isPineEditorOpen = false,
+    onIndicatorTemplatesClick
 }) => {
 
     const [showIndicators, setShowIndicators] = useState(false);
@@ -702,6 +704,12 @@ const Topbar: React.FC<TopbarProps> = ({
                                                             className={styles.indicatorDropdown}
                                                             style={{ top: indicatorPos.top, left: indicatorPos.left }}
                                                         >
+                                                            {onIndicatorTemplatesClick && (
+                                                                <>
+                                                                    <div className={styles.dropdownItem} style={{ color: '#5c83f5', fontWeight: 500 }} onClick={(e) => { e.stopPropagation(); setShowIndicators(false); onIndicatorTemplatesClick(); }}>📋 Indicator Templates…</div>
+                                                                    <div className={styles.dropdownDivider}></div>
+                                                                </>
+                                                            )}
                                                             <div className={styles.dropdownSection}>Moving Averages</div>
                                                             <div className={styles.dropdownItem} onClick={(e) => { e.stopPropagation(); onAddIndicator?.('sma'); }}>SMA</div>
                                                             <div className={styles.dropdownItem} onClick={(e) => { e.stopPropagation(); onAddIndicator?.('ema'); }}>EMA</div>

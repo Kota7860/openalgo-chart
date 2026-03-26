@@ -11,6 +11,18 @@ export { calculateSMA } from './sma';
 export { calculateEMA } from './ema';
 export { calculateHMA } from './hma';
 
+// Linear Regression Channel
+export { calculateLinearRegression } from './linearRegression';
+export type { LinearRegressionResult } from './linearRegression';
+
+// Squeeze Momentum
+export { calculateSqueeze } from './squeeze';
+export type { SqueezeResult } from './squeeze';
+
+// Candlestick Pattern Recognition
+export { detectCandlePatterns } from './candlePatterns';
+export type { CandlePattern, CandlePatternOptions, PatternBias } from './candlePatterns';
+
 // Trend / Stop
 export { calculateParabolicSAR } from './parabolicSar';
 export type { SARPoint } from './parabolicSar';

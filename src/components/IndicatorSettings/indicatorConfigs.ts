@@ -589,6 +589,68 @@ export const indicatorConfigs: Record<string, IndicatorConfigDefinition> = {
             { key: 'lineWidth',   label: 'Line Width',   type: 'number', min: 1, max: 5, default: 1 },
         ],
     },
+
+    candle_patterns: {
+        name: 'Candle Patterns',
+        fullName: 'Candlestick Pattern Recognition',
+        pane: 'main',
+        description: 'Auto-detects and labels 15+ classic candlestick patterns on the chart',
+        inputs: [
+            { key: 'showDoji',               label: 'Doji',               type: 'boolean', default: true  },
+            { key: 'showHammer',             label: 'Hammer',             type: 'boolean', default: true  },
+            { key: 'showInvertedHammer',     label: 'Inverted Hammer',    type: 'boolean', default: true  },
+            { key: 'showShootingStar',       label: 'Shooting Star',      type: 'boolean', default: true  },
+            { key: 'showSpinningTop',        label: 'Spinning Top',       type: 'boolean', default: false },
+            { key: 'showMarubozu',           label: 'Marubozu',           type: 'boolean', default: false },
+            { key: 'showEngulfing',          label: 'Engulfing',          type: 'boolean', default: true  },
+            { key: 'showPiercingDarkCloud',  label: 'Piercing/Dark Cloud',type: 'boolean', default: true  },
+            { key: 'showHarami',             label: 'Harami',             type: 'boolean', default: true  },
+            { key: 'showMorningStar',        label: 'Morning Star',       type: 'boolean', default: true  },
+            { key: 'showEveningStar',        label: 'Evening Star',       type: 'boolean', default: true  },
+            { key: 'showThreeSoldiersCrows', label: '3 Soldiers/Crows',   type: 'boolean', default: true  },
+            { key: 'showLabels',             label: 'Show Labels',        type: 'boolean', default: true  },
+        ],
+        style: [
+            { key: 'bullColor',    label: 'Bullish',  type: 'color', default: '#26A69A' },
+            { key: 'bearColor',    label: 'Bearish',  type: 'color', default: '#EF5350' },
+            { key: 'neutralColor', label: 'Neutral',  type: 'color', default: '#9E9E9E' },
+        ],
+    },
+
+    squeeze: {
+        name: 'Squeeze',
+        fullName: 'Squeeze Momentum (LazyBear)',
+        pane: 'squeeze',
+        description: 'Low-volatility squeeze detection using Bollinger Bands vs Keltner Channel',
+        inputs: [
+            { key: 'bbPeriod', label: 'BB Length', type: 'number', min: 2, max: 100, default: 20  },
+            { key: 'bbMult',   label: 'BB Mult',   type: 'number', min: 0.5, max: 5, step: 0.5, default: 2.0 },
+            { key: 'kcPeriod', label: 'KC Length', type: 'number', min: 2, max: 100, default: 20  },
+            { key: 'kcMult',   label: 'KC Mult',   type: 'number', min: 0.1, max: 5, step: 0.1, default: 1.5 },
+        ],
+        style: [
+            { key: 'bullColor',   label: 'Momentum Up',     type: 'color', default: '#26A69A' },
+            { key: 'bearColor',   label: 'Momentum Down',   type: 'color', default: '#EF5350' },
+            { key: 'sqzOnColor',  label: 'Squeeze ON dot',  type: 'color', default: '#F23645' },
+            { key: 'sqzOffColor', label: 'Squeeze OFF dot', type: 'color', default: '#089981' },
+        ],
+    },
+
+    linear_regression: {
+        name: 'LR Channel',
+        fullName: 'Linear Regression Channel',
+        pane: 'main',
+        inputs: [
+            { key: 'period',     label: 'Length',      type: 'number', min: 10, max: 500, default: 100 },
+            { key: 'multiplier', label: 'StdDev Mult', type: 'number', min: 0.1, max: 5, step: 0.1, default: 2.0 },
+            { key: 'source',     label: 'Source',      type: 'select', options: ['close', 'open', 'high', 'low', 'hl2', 'hlc3'], default: 'close' },
+        ],
+        style: [
+            { key: 'midColor',  label: 'Regression Line', type: 'color', default: '#2962FF' },
+            { key: 'bandColor', label: 'Band Color',       type: 'color', default: '#FF6D00' },
+            { key: 'lineWidth', label: 'Line Width',        type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
 };
 
 

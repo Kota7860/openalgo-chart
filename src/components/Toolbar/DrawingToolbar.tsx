@@ -67,7 +67,8 @@ const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
             id: 'fib_group',
             items: [
                 { id: 'fibonacci', icon: Icons.FibRetracementIcon, label: 'Fib Retracement' },
-                { id: 'fib_extension', icon: Icons.FibExtensionIcon, label: 'Trend-Based Fib Extension' }
+                { id: 'fib_extension', icon: Icons.FibExtensionIcon, label: 'Trend-Based Fib Extension' },
+                { id: 'fib_time_zones', icon: Icons.FibTimeZonesIcon, label: 'Fibonacci Time Zones' }
             ]
         },
         {

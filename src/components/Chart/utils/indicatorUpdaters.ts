@@ -30,7 +30,10 @@ import {
     calculateHMA,
     calculateROC,
     calculateParabolicSAR,
-    calculateVWAPBands
+    calculateVWAPBands,
+    detectCandlePatterns,
+    calculateSqueeze,
+    calculateLinearRegression
 } from '../../../utils/indicators';
 import { calculateANNStrategy } from '../../../utils/indicators/annStrategy';
 import { calculateHilengaMilenga } from '../../../utils/indicators/hilengaMilenga';
@@ -670,6 +673,101 @@ export const updatePSARSeries = (series: any, ind: IndicatorConfig, data: OHLCDa
 };
 
 /**
+ * Update Candlestick Pattern Recognition — returns ChartMarker[] for each detected pattern
+ */
+export const updateCandlePatternsSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): ChartMarker[] => {
+    if (!isVisible) return [];
+    const patterns = detectCandlePatterns(data as any, {
+        showDoji: ind.showDoji !== false,
+        showHammer: ind.showHammer !== false,
+        showInvertedHammer: ind.showInvertedHammer !== false,
+        showShootingStar: ind.showShootingStar !== false,
+        showSpinningTop: ind.showSpinningTop !== false,
+        showMarubozu: ind.showMarubozu !== false,
+        showEngulfing: ind.showEngulfing !== false,
+        showPiercingDarkCloud: ind.showPiercingDarkCloud !== false,
+        showHarami: ind.showHarami !== false,
+        showMorningStar: ind.showMorningStar !== false,
+        showEveningStar: ind.showEveningStar !== false,
+        showThreeSoldiersCrows: ind.showThreeSoldiersCrows !== false,
+    });
+    return patterns.map(p => ({
+        time: p.time,
+        position: p.type === 'bearish' ? ('aboveBar' as const) : ('belowBar' as const),
+        color: p.type === 'bearish' ? (ind.bearColor || '#EF5350') : p.type === 'bullish' ? (ind.bullColor || '#26A69A') : (ind.neutralColor || '#9E9E9E'),
+        shape: p.type === 'bearish' ? ('arrowDown' as const) : ('arrowUp' as const),
+        text: ind.showLabels !== false ? p.name : ''
+    }));
+};
+
+/**
+ * Update Squeeze Momentum series — histogram + squeeze-state dot markers
+ */
+export const updateSqueezeSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): ChartMarker[] => {
+    const bullColor  = ind.bullColor  || '#26A69A';
+    const bearColor  = ind.bearColor  || '#EF5350';
+    const sqzOnColor = ind.sqzOnColor || '#F23645';
+    const sqzOffColor = ind.sqzOffColor || '#089981';
+
+    series.hist.applyOptions({ visible: isVisible });
+    series.dots.applyOptions({ visible: false });
+
+    if (!isVisible || data.length < 20) return [];
+
+    const result = calculateSqueeze(
+        data as any,
+        ind.bbPeriod || 20,
+        ind.bbMult   || 2.0,
+        ind.kcPeriod || 20,
+        ind.kcMult   || 1.5
+    );
+
+    if (!result.momentum.length) return [];
+
+    // Color histogram by value direction
+    const histData = result.momentum.map((p, i) => {
+        const prev = i > 0 ? result.momentum[i - 1].value : 0;
+        const rising = p.value >= prev;
+        const pos = p.value >= 0;
+        return {
+            time: p.time,
+            value: p.value,
+            color: pos ? (rising ? bullColor : '#52b2a0') : (rising ? '#f07070' : bearColor)
+        };
+    });
+    series.hist.setData(histData);
+
+    // Return dot markers for squeeze state
+    return result.squeezeOn.map(s => ({
+        time: s.time,
+        position: 'belowBar' as const,
+        color: s.on ? sqzOnColor : sqzOffColor,
+        shape: 'circle' as const,
+        text: ''
+    }));
+};
+
+/**
+ * Update Linear Regression Channel (3 overlay lines)
+ */
+export const updateLinearRegressionSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    const midColor   = ind.midColor   || '#2962FF';
+    const bandColor  = ind.bandColor  || '#FF6D00';
+    const lw         = ind.lineWidth  || 2;
+
+    series.mid.applyOptions({   visible: isVisible, color: midColor,  lineWidth: lw });
+    series.upper.applyOptions({ visible: isVisible, color: bandColor, lineWidth: 1  });
+    series.lower.applyOptions({ visible: isVisible, color: bandColor, lineWidth: 1  });
+
+    const val = calculateLinearRegression(data as any, ind.period || 100, ind.multiplier || 2.0, ind.source || 'close');
+    if (val.mid.length > 0) {
+        series.mid.setData(val.mid);
+        series.upper.setData(val.upper);
+        series.lower.setData(val.lower);
+    }
+};
+
+/**
  * Update VWAP Bands series (VWAP + 2 upper/lower SD bands)
  */
 export const updateVWAPBandsSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
@@ -805,6 +903,16 @@ export const updateIndicatorSeries = (series: any, ind: IndicatorConfig, data: O
 
         case 'vwap_bands':
             updateVWAPBandsSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'candle_patterns':
+            return updateCandlePatternsSeries(series, ind, data, isVisible);
+
+        case 'squeeze':
+            return updateSqueezeSeries(series, ind, data, isVisible);
+
+        case 'linear_regression':
+            updateLinearRegressionSeries(series, ind, data, isVisible);
             return [];
 
         default:

@@ -374,6 +374,27 @@ export const ArcIcon: React.FC<IconProps> = ({ size = 28, ...props }) => (
 );
 
 // Sequential Drawing Mode Icon - keeps tool active after drawing
+export const FibTimeZonesIcon: React.FC<IconProps> = ({ size = 28, ...props }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width={size} height={size} fill="currentColor" {...props}>
+        {/* Horizontal baseline */}
+        <path d="M3 20h22v1H3z" opacity="0.4"/>
+        {/* Vertical zone lines at Fib positions — 0,1,1,2,3,5,8 */}
+        <path d="M4 8h1v12H4z"/>
+        <path d="M7 8h1v12H7z" opacity="0.8"/>
+        <path d="M10 8h1v12h-1z" opacity="0.8"/>
+        <path d="M13 8h1v12h-1z" opacity="0.6"/>
+        <path d="M17 8h1v12h-1z" opacity="0.5"/>
+        <path d="M22 8h1v12h-1z" opacity="0.4"/>
+        {/* Fib number labels */}
+        <text x="3.5" y="7" fontSize="3.5" textAnchor="middle">0</text>
+        <text x="6.5" y="7" fontSize="3.5" textAnchor="middle">1</text>
+        <text x="9.5" y="7" fontSize="3.5" textAnchor="middle">2</text>
+        <text x="12.5" y="7" fontSize="3.5" textAnchor="middle">3</text>
+        <text x="16.5" y="7" fontSize="3.5" textAnchor="middle">5</text>
+        <text x="21.5" y="7" fontSize="3.5" textAnchor="middle">8</text>
+    </svg>
+);
+
 export const SequentialDrawingIcon: React.FC<IconProps> = ({ size = 28, ...props }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width={size} height={size} fill="currentColor" {...props}>
         <path d="M4 6h2v2H4zM4 12h2v2H4zM4 18h2v2H4zM10 6h2v2h-2zM10 12h2v2h-2zM10 18h2v2h-2zM16 6h2v2h-2zM16 12h2v2h-2zM16 18h2v2h-2zM22 6h2v2h-2zM22 12h2v2h-2zM22 18h2v2h-2z"></path>

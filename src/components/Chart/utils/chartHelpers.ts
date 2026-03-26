@@ -38,6 +38,7 @@ export const TOOL_MAP: Record<string, string> = {
   'fibonacci': 'FibRetracement',
   'fib_extension': 'FibExtension',
   'pitchfork': 'Pitchfork',
+  'fib_time_zones': 'FibTimeZones',
   'brush': 'Brush',
   'highlighter': 'Highlighter',
   'rectangle': 'Rectangle',

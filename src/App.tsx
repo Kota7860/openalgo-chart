@@ -73,6 +73,7 @@ const MTFBiasPanel     = lazy(() => import('./components/MTFBias/MTFBiasPanel'))
 const TradeJournalPanel = lazy(() => import('./components/TradeJournal/TradeJournalPanel'));
 const SMCAlertPanel     = lazy(() => import('./components/SMCAlerts/SMCAlertPanel'));
 const ChartTemplatesDialog = lazy(() => import('./components/ChartTemplates/ChartTemplatesDialog'));
+const IndicatorTemplatesDialog = lazy(() => import('./components/IndicatorTemplates/IndicatorTemplatesDialog'));
 const ShortcutsSettings = lazy(() => import('./components/ShortcutsSettings/ShortcutsSettings'));
 const IndicatorSettingsDialog = lazy(() => import('./components/IndicatorSettings/IndicatorSettingsDialog'));
 const PineScriptEditor = lazy(() => import('./components/PineEditor/PineScriptEditor'));
@@ -227,6 +228,9 @@ function AppContent({ isAuthenticated, setIsAuthenticated }) {
 
   const [chartType, setChartType] = useState('candlestick');
   // Modal states (isSearchOpen, searchMode, etc.) are now from UIContext above
+
+  // Indicator Templates dialog state
+  const [isIndicatorTemplatesOpen, setIsIndicatorTemplatesOpen] = useState(false);
 
   // Compare options dialog state (unique to App.jsx)
   const [compareOptionsVisible, setCompareOptionsVisible] = useState(false);
@@ -1922,6 +1926,7 @@ function AppContent({ isAuthenticated, setIsAuthenticated }) {
             onHeatmapClick={() => setIsSectorHeatmapOpen(true)}
             onPineEditorClick={() => setShowPineEditor(prev => !prev)}
             isPineEditorOpen={showPineEditor}
+            onIndicatorTemplatesClick={() => setIsIndicatorTemplatesOpen(true)}
           />
         }
         leftToolbar={
@@ -2477,6 +2482,20 @@ function AppContent({ isAuthenticated, setIsAuthenticated }) {
             onClose={() => setIsChartTemplatesOpen(false)}
             currentConfig={getCurrentChartConfig() as any}
             onLoadTemplate={handleLoadChartTemplate as any}
+          />
+        )}
+      </Suspense>
+      <Suspense fallback={null}>
+        {isIndicatorTemplatesOpen && (
+          <IndicatorTemplatesDialog
+            isOpen={isIndicatorTemplatesOpen}
+            onClose={() => setIsIndicatorTemplatesOpen(false)}
+            currentIndicators={activeChart?.indicators ?? []}
+            onLoadTemplate={(indicators: any[]) => {
+              setCharts((prev: any) => prev.map((c: any) =>
+                c.id === activeChartId ? { ...c, indicators } : c
+              ));
+            }}
           />
         )}
       </Suspense>

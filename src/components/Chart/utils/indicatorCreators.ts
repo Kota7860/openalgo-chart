@@ -780,6 +780,49 @@ export const createPSARSeries = (chart: any): any => {
 };
 
 /**
+ * Create Candlestick Patterns series — invisible host on main chart (markers returned by updater)
+ */
+export const createCandlePatternsSeries = (chart: any): any => {
+    return chart.addSeries(LineSeries, {
+        lineWidth: 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        visible: false
+    });
+};
+
+/**
+ * Create Squeeze Momentum series — histogram + dot overlay in separate pane
+ */
+export const createSqueezeSeries = (chart: any): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 120 });
+    const histSeries = pane.addSeries(HistogramSeries, {
+        priceLineVisible: false,
+        lastValueVisible: true
+    });
+    // Attach dot series to the same pane (LineSeries with markers for squeeze dots)
+    const dotSeries = pane.addSeries(LineSeries, {
+        lineWidth: 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false
+    });
+    return { series: { hist: histSeries, dots: dotSeries }, pane };
+};
+
+/**
+ * Create Linear Regression Channel series — 3 overlay lines on main chart
+ */
+export const createLinearRegressionSeries = (chart: any): any => {
+    return {
+        mid:   chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: false }),
+        upper: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false }),
+        lower: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false })
+    };
+};
+
+/**
  * Create VWAP Bands series — 5 overlay lines (VWAP + 2 upper + 2 lower SD bands)
  */
 export const createVWAPBandsSeries = (chart: any): any => {
@@ -945,6 +988,17 @@ export const createIndicatorSeries = (chart: any, ind: IndicatorConfig, isVisibl
 
         case 'vwap_bands':
             return { series: createVWAPBandsSeries(chart) };
+
+        case 'candle_patterns':
+            return { series: createCandlePatternsSeries(chart) };
+
+        case 'squeeze': {
+            const result = createSqueezeSeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'linear_regression':
+            return { series: createLinearRegressionSeries(chart) };
 
         default:
             return null;

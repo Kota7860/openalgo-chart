@@ -89,7 +89,8 @@ export type DrawingToolName =
     | 'ExtendedLine'
     | 'ParallelChannel'
     | 'FibonacciRetracement'
-    | 'Pitchfork';
+    | 'Pitchfork'
+    | 'FibTimeZones';
 
 // ============== Interval Utilities ==============
 
@@ -274,6 +275,7 @@ export const DRAWING_TOOLS: DrawingToolName[] = [
     'ParallelChannel',
     'FibonacciRetracement',
     'Pitchfork',
+    'FibTimeZones',
 ];
 
 // ============== Price Formatting ==============
