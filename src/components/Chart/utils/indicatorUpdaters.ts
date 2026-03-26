@@ -16,7 +16,15 @@ import {
     calculateSupertrend,
     calculateADX,
     calculateIchimoku,
-    calculatePivotPoints
+    calculatePivotPoints,
+    calculateCCI,
+    calculateMFI,
+    calculateOBV,
+    calculateWilliamsR,
+    calculateDonchianChannel,
+    calculateKeltnerChannel,
+    calculateZigZag,
+    detectRSIDivergences
 } from '../../../utils/indicators';
 import { calculateANNStrategy } from '../../../utils/indicators/annStrategy';
 import { calculateHilengaMilenga } from '../../../utils/indicators/hilengaMilenga';
@@ -445,6 +453,126 @@ export const updatePineSeries = (series: any, ind: IndicatorConfig, data: OHLCDa
 };
 
 /**
+ * Update CCI series
+ */
+export const updateCCISeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.applyOptions({ visible: isVisible, color: ind.color || '#2962FF' });
+    if (series._obLine) {
+        series._obLine.applyOptions({ price: ind.overbought ?? 100, color: ind.overboughtColor || CHART_COLORS.DOWN.primary });
+    }
+    if (series._osLine) {
+        series._osLine.applyOptions({ price: ind.oversold ?? -100, color: ind.oversoldColor || CHART_COLORS.UP.primary });
+    }
+    const val = calculateCCI(data, ind.period || 20);
+    if (val && val.length > 0) series.setData(val);
+};
+
+/**
+ * Update MFI series
+ */
+export const updateMFISeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.applyOptions({ visible: isVisible, color: ind.color || '#00BCD4' });
+    if (series._obLine) {
+        series._obLine.applyOptions({ price: ind.overbought ?? 80, color: ind.overboughtColor || CHART_COLORS.DOWN.primary });
+    }
+    if (series._osLine) {
+        series._osLine.applyOptions({ price: ind.oversold ?? 20, color: ind.oversoldColor || CHART_COLORS.UP.primary });
+    }
+    const val = calculateMFI(data, ind.period || 14);
+    if (val && val.length > 0) series.setData(val);
+};
+
+/**
+ * Update OBV series
+ */
+export const updateOBVSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.applyOptions({ visible: isVisible, color: ind.color || '#2962FF' });
+    const val = calculateOBV(data);
+    if (val && val.length > 0) series.setData(val);
+};
+
+/**
+ * Update Williams %R series
+ */
+export const updateWilliamsRSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.applyOptions({ visible: isVisible, color: ind.color || '#7B1FA2' });
+    if (series._obLine) {
+        series._obLine.applyOptions({ price: ind.overbought ?? -20, color: ind.overboughtColor || CHART_COLORS.DOWN.primary });
+    }
+    if (series._osLine) {
+        series._osLine.applyOptions({ price: ind.oversold ?? -80, color: ind.oversoldColor || CHART_COLORS.UP.primary });
+    }
+    const val = calculateWilliamsR(data, ind.period || 14);
+    if (val && val.length > 0) series.setData(val);
+};
+
+/**
+ * Update Donchian Channel series
+ */
+export const updateDonchianSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.upper.applyOptions({ visible: isVisible, color: ind.upperColor || '#2962FF', lineWidth: ind.lineWidth || 1 });
+    series.mid.applyOptions({ visible: isVisible, color: ind.midColor || '#9E9E9E', lineWidth: ind.lineWidth || 1 });
+    series.lower.applyOptions({ visible: isVisible, color: ind.lowerColor || '#2962FF', lineWidth: ind.lineWidth || 1 });
+    const val = calculateDonchianChannel(data, ind.period || 20);
+    if (val) {
+        if (val.upper.length > 0) series.upper.setData(val.upper);
+        if (val.mid.length > 0) series.mid.setData(val.mid);
+        if (val.lower.length > 0) series.lower.setData(val.lower);
+    }
+};
+
+/**
+ * Update Keltner Channel series
+ */
+export const updateKeltnerSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.upper.applyOptions({ visible: isVisible, color: ind.upperColor || '#FF6D00', lineWidth: ind.lineWidth || 1 });
+    series.mid.applyOptions({ visible: isVisible, color: ind.midColor || '#9E9E9E', lineWidth: ind.lineWidth || 1 });
+    series.lower.applyOptions({ visible: isVisible, color: ind.lowerColor || '#FF6D00', lineWidth: ind.lineWidth || 1 });
+    const val = calculateKeltnerChannel(data, ind.emaPeriod || 20, ind.atrPeriod || 10, ind.multiplier || 2.0);
+    if (val) {
+        if (val.upper.length > 0) series.upper.setData(val.upper);
+        if (val.mid.length > 0) series.mid.setData(val.mid);
+        if (val.lower.length > 0) series.lower.setData(val.lower);
+    }
+};
+
+/**
+ * Update ZigZag series — emits no line data (primitive does the drawing),
+ * but we store the pivot data on the series object for future use.
+ */
+export const updateZigZagSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): ChartMarker[] => {
+    // ZigZag uses a canvas primitive stored on series._primitive
+    const pivots = calculateZigZag(data, ind.deviation || 5);
+    if (series._primitive && typeof series._primitive.update === 'function') {
+        series._primitive.update(pivots, ind.color || '#FF9800', ind.showLabels !== false);
+    }
+    // Also emit markers for each pivot as fallback
+    if (!isVisible) return [];
+    return pivots.map(p => ({
+        time: p.time,
+        position: p.type === 'high' ? ('aboveBar' as const) : ('belowBar' as const),
+        color: ind.color || '#FF9800',
+        shape: 'circle' as const,
+        text: p.type === 'high' ? 'H' : 'L'
+    }));
+};
+
+/**
+ * Update RSI Divergence series — returns markers for bullish/bearish divergences
+ */
+export const updateRSIDivergenceSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): ChartMarker[] => {
+    if (!isVisible) return [];
+    const divergences = detectRSIDivergences(data, ind.rsiPeriod || 14, ind.swingLookback || 5);
+    return divergences.map(div => ({
+        time: div.time2,
+        position: div.type === 'bullish_regular' ? ('belowBar' as const) : ('aboveBar' as const),
+        color: div.type === 'bullish_regular' ? (ind.bullColor || '#26A69A') : (ind.bearColor || '#EF5350'),
+        shape: div.type === 'bullish_regular' ? ('arrowUp' as const) : ('arrowDown' as const),
+        text: div.type === 'bullish_regular' ? 'Bull Div' : 'Bear Div'
+    }));
+};
+
+/**
  * Main update function - updates series for any indicator type
  * @returns markers (for indicators that generate markers like ANN Strategy)
  */
@@ -508,6 +636,36 @@ export const updateIndicatorSeries = (series: any, ind: IndicatorConfig, data: O
         case 'pine':
             updatePineSeries(series, ind, data, isVisible);
             return [];
+
+        case 'cci':
+            updateCCISeries(series, ind, data, isVisible);
+            return [];
+
+        case 'mfi':
+            updateMFISeries(series, ind, data, isVisible);
+            return [];
+
+        case 'obv':
+            updateOBVSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'willr':
+            updateWilliamsRSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'donchian':
+            updateDonchianSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'keltner':
+            updateKeltnerSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'zigzag':
+            return updateZigZagSeries(series, ind, data, isVisible);
+
+        case 'rsi_divergence':
+            return updateRSIDivergenceSeries(series, ind, data, isVisible);
 
         default:
             return [];

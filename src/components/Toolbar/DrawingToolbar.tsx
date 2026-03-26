@@ -59,7 +59,8 @@ const DrawingToolbar: React.FC<DrawingToolbarProps> = ({
                 { id: 'horizontal', icon: Icons.HorizontalLineIcon, label: 'Horizontal Line' },
                 { id: 'vertical', icon: Icons.VerticalLineIcon, label: 'Vertical Line' },
                 { id: 'cross_line', icon: Icons.CrossLineIcon, label: 'Cross Line' },
-                { id: 'parallel_channel', icon: Icons.ParallelChannelIcon, label: 'Parallel Channel' }
+                { id: 'parallel_channel', icon: Icons.ParallelChannelIcon, label: 'Parallel Channel' },
+                { id: 'pitchfork', icon: Icons.PitchforkIcon, label: 'Andrews Pitchfork' }
             ]
         },
         {

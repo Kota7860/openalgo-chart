@@ -123,6 +123,27 @@ export const ParallelChannelIcon: React.FC<IconProps> = ({ size = 28, ...props }
     </svg>
 );
 
+export const PitchforkIcon: React.FC<IconProps> = ({ size = 28, ...props }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width={size} height={size} {...props}>
+        <g fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round">
+            {/* Anchor point P1 */}
+            <circle cx="4" cy="22" r="1.5" fill="currentColor" stroke="none" />
+            {/* Upper handle P2 */}
+            <circle cx="24" cy="4" r="1.5" fill="currentColor" stroke="none" />
+            {/* Lower handle P3 */}
+            <circle cx="24" cy="20" r="1.5" fill="currentColor" stroke="none" />
+            {/* Handle line P2-P3 */}
+            <line x1="24" y1="4" x2="24" y2="20" />
+            {/* Median line: P1 → midpoint(P2,P3) extended (dashed) */}
+            <line x1="4" y1="22" x2="24" y2="12" strokeDasharray="2,2" />
+            {/* Upper trendline: P2 parallel to median */}
+            <line x1="24" y1="4" x2="28" y2="2" />
+            {/* Lower trendline: P3 parallel to median */}
+            <line x1="24" y1="20" x2="28" y2="18" />
+        </g>
+    </svg>
+);
+
 export const FibRetracementIcon: React.FC<IconProps> = ({ size = 28, ...props }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width={size} height={size} {...props}>
         <g fill="currentColor" fillRule="nonzero">

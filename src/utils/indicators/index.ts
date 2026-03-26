@@ -10,9 +10,21 @@ export * from './types';
 export { calculateSMA } from './sma';
 export { calculateEMA } from './ema';
 
+// ZigZag
+export { calculateZigZag } from './zigzag';
+export type { ZigZagPoint } from './zigzag';
+
+// RSI Divergence
+export { detectRSIDivergences } from './rsiDivergence';
+export type { Divergence, DivergenceType } from './rsiDivergence';
+
 // Oscillators
 export { calculateRSI } from './rsi';
 export { calculateStochastic } from './stochastic';
+export { calculateCCI } from './cci';
+export { calculateMFI } from './mfi';
+export { calculateOBV } from './obv';
+export { calculateWilliamsR } from './williamsR';
 
 // Momentum
 export { calculateMACD } from './macd';
@@ -20,6 +32,10 @@ export { calculateMACD } from './macd';
 // Volatility
 export { calculateBollingerBands } from './bollingerBands';
 export { calculateATR } from './atr';
+export { calculateDonchianChannel } from './donchianChannel';
+export type { DonchianResult } from './donchianChannel';
+export { calculateKeltnerChannel } from './keltnerChannel';
+export type { KeltnerResult } from './keltnerChannel';
 
 // Trend
 export { calculateSupertrend } from './supertrend';
