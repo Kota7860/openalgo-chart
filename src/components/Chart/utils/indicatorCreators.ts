@@ -735,6 +735,64 @@ export const createPrevDayOHLCSeries = (chart: any): any => {
 };
 
 /**
+ * Create HMA series (overlay on main chart)
+ */
+export const createHMASeries = (chart: any): any => {
+    return chart.addSeries(LineSeries, {
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false
+    });
+};
+
+/**
+ * Create ROC series in separate pane with zero reference line
+ */
+export const createROCSeries = (chart: any): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const series = pane.addSeries(LineSeries, {
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true
+    });
+    (series as any)._zeroLine = series.createPriceLine({
+        price: 0,
+        color: '#666666',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    return { series, pane };
+};
+
+/**
+ * Create Parabolic SAR series — invisible host line on main chart (markers returned by updater)
+ */
+export const createPSARSeries = (chart: any): any => {
+    return chart.addSeries(LineSeries, {
+        lineWidth: 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        visible: false
+    });
+};
+
+/**
+ * Create VWAP Bands series — 5 overlay lines (VWAP + 2 upper + 2 lower SD bands)
+ */
+export const createVWAPBandsSeries = (chart: any): any => {
+    return {
+        vwap:   chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: false }),
+        upper1: chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: false }),
+        lower1: chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: false }),
+        upper2: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false }),
+        lower2: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false })
+    };
+};
+
+/**
  * Create Pine Script indicator series
  * Creates a simple line series for each plot in the Pine Script
  */
@@ -873,6 +931,20 @@ export const createIndicatorSeries = (chart: any, ind: IndicatorConfig, isVisibl
 
         case 'prev_day_ohlc':
             return { series: createPrevDayOHLCSeries(chart) };
+
+        case 'hma':
+            return { series: createHMASeries(chart) };
+
+        case 'roc': {
+            const result = createROCSeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'psar':
+            return { series: createPSARSeries(chart) };
+
+        case 'vwap_bands':
+            return { series: createVWAPBandsSeries(chart) };
 
         default:
             return null;

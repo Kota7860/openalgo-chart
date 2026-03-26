@@ -531,6 +531,64 @@ export const indicatorConfigs: Record<string, IndicatorConfigDefinition> = {
             { key: 'openColor',  label: 'PDO Color',   type: 'color', default: '#2962FF' },
         ],
     },
+
+    hma: {
+        name: 'HMA',
+        fullName: 'Hull Moving Average',
+        pane: 'main',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 2, max: 500, default: 20 },
+            { key: 'source', label: 'Source', type: 'select', options: ['open', 'high', 'low', 'close'], default: 'close' },
+        ],
+        style: [
+            { key: 'color', label: 'Line Color', type: 'color', default: '#00BCD4' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
+
+    roc: {
+        name: 'ROC',
+        fullName: 'Rate of Change',
+        pane: 'roc',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 1, max: 200, default: 14 },
+        ],
+        style: [
+            { key: 'color', label: 'Line Color', type: 'color', default: '#FF9800' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
+
+    psar: {
+        name: 'PSAR',
+        fullName: 'Parabolic SAR',
+        pane: 'main',
+        inputs: [
+            { key: 'step',  label: 'Step',   type: 'number', min: 0.001, max: 0.1,  step: 0.001, default: 0.02 },
+            { key: 'maxAF', label: 'Max AF', type: 'number', min: 0.1,   max: 0.5,  step: 0.01,  default: 0.2  },
+        ],
+        style: [
+            { key: 'upColor',   label: 'Bullish Dots',  type: 'color', default: '#26A69A' },
+            { key: 'downColor', label: 'Bearish Dots',  type: 'color', default: '#EF5350' },
+        ],
+    },
+
+    vwap_bands: {
+        name: 'VWAP Bands',
+        fullName: 'VWAP with Standard Deviation Bands',
+        pane: 'main',
+        inputs: [
+            { key: 'multiplier1', label: 'Band 1 Mult', type: 'number', min: 0.1, max: 5, step: 0.1, default: 1 },
+            { key: 'multiplier2', label: 'Band 2 Mult', type: 'number', min: 0.1, max: 5, step: 0.1, default: 2 },
+            { key: 'resetDaily',  label: 'Daily Reset',  type: 'boolean', default: true },
+        ],
+        style: [
+            { key: 'vwapColor',   label: 'VWAP Line',   type: 'color', default: '#2962FF' },
+            { key: 'band1Color',  label: 'Band 1 Color', type: 'color', default: '#FF9800' },
+            { key: 'band2Color',  label: 'Band 2 Color', type: 'color', default: '#9C27B0' },
+            { key: 'lineWidth',   label: 'Line Width',   type: 'number', min: 1, max: 5, default: 1 },
+        ],
+    },
 };
 
 

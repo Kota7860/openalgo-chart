@@ -26,7 +26,11 @@ import {
     calculateZigZag,
     detectRSIDivergences,
     calculateStochasticRSI,
-    calculatePrevDayOHLC
+    calculatePrevDayOHLC,
+    calculateHMA,
+    calculateROC,
+    calculateParabolicSAR,
+    calculateVWAPBands
 } from '../../../utils/indicators';
 import { calculateANNStrategy } from '../../../utils/indicators/annStrategy';
 import { calculateHilengaMilenga } from '../../../utils/indicators/hilengaMilenga';
@@ -633,6 +637,59 @@ export const updatePrevDayOHLCSeries = (series: any, ind: IndicatorConfig, data:
 };
 
 /**
+ * Update HMA series (overlay)
+ */
+export const updateHMASeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.applyOptions({ visible: isVisible, color: ind.color || '#9C27B0', lineWidth: ind.lineWidth || 2 });
+    const val = calculateHMA(data, ind.period || 20);
+    if (val && val.length > 0) series.setData(val);
+};
+
+/**
+ * Update ROC series
+ */
+export const updateROCSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.applyOptions({ visible: isVisible, color: ind.color || '#2962FF' });
+    const val = calculateROC(data, ind.period || 14);
+    if (val && val.length > 0) series.setData(val);
+};
+
+/**
+ * Update Parabolic SAR — renders as circle markers above/below price
+ */
+export const updatePSARSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): ChartMarker[] => {
+    if (!isVisible) return [];
+    const sarPoints = calculateParabolicSAR(data, ind.step || 0.02, ind.maxAF || 0.2);
+    return sarPoints.map(p => ({
+        time: p.time,
+        position: p.trend === 'bull' ? ('belowBar' as const) : ('aboveBar' as const),
+        color: p.trend === 'bull' ? (ind.bullColor || '#089981') : (ind.bearColor || '#F23645'),
+        shape: 'circle' as const,
+        text: ''
+    }));
+};
+
+/**
+ * Update VWAP Bands series (VWAP + 2 upper/lower SD bands)
+ */
+export const updateVWAPBandsSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.vwap.applyOptions({   visible: isVisible, color: ind.vwapColor   || '#2962FF', lineWidth: 2 });
+    series.upper1.applyOptions({ visible: isVisible, color: ind.band1Color  || '#FF6D00', lineWidth: 1 });
+    series.lower1.applyOptions({ visible: isVisible, color: ind.band1Color  || '#FF6D00', lineWidth: 1 });
+    series.upper2.applyOptions({ visible: isVisible, color: ind.band2Color  || '#9C27B0', lineWidth: 1 });
+    series.lower2.applyOptions({ visible: isVisible, color: ind.band2Color  || '#9C27B0', lineWidth: 1 });
+
+    const val = calculateVWAPBands(data, ind.stdDev || 2, ind.resetDaily !== false);
+    if (val) {
+        if (val.vwap.length > 0)    series.vwap.setData(val.vwap);
+        if (val.upperBand1.length > 0) series.upper1.setData(val.upperBand1);
+        if (val.lowerBand1.length > 0) series.lower1.setData(val.lowerBand1);
+        if (val.upperBand2.length > 0) series.upper2.setData(val.upperBand2);
+        if (val.lowerBand2.length > 0) series.lower2.setData(val.lowerBand2);
+    }
+};
+
+/**
  * Main update function - updates series for any indicator type
  * @returns markers (for indicators that generate markers like ANN Strategy)
  */
@@ -733,6 +790,21 @@ export const updateIndicatorSeries = (series: any, ind: IndicatorConfig, data: O
 
         case 'prev_day_ohlc':
             updatePrevDayOHLCSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'hma':
+            updateHMASeries(series, ind, data, isVisible);
+            return [];
+
+        case 'roc':
+            updateROCSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'psar':
+            return updatePSARSeries(series, ind, data, isVisible);
+
+        case 'vwap_bands':
+            updateVWAPBandsSeries(series, ind, data, isVisible);
             return [];
 
         default:

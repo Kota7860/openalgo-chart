@@ -9,6 +9,14 @@ export * from './types';
 // Moving Averages
 export { calculateSMA } from './sma';
 export { calculateEMA } from './ema';
+export { calculateHMA } from './hma';
+
+// Trend / Stop
+export { calculateParabolicSAR } from './parabolicSar';
+export type { SARPoint } from './parabolicSar';
+
+// Momentum
+export { calculateROC } from './roc';
 
 // ZigZag
 export { calculateZigZag } from './zigzag';

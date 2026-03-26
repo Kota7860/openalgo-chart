@@ -56,7 +56,11 @@ export type IndicatorType =
   | 'zigzag'
   | 'rsi_divergence'
   | 'stochastic_rsi'
-  | 'prev_day_ohlc';
+  | 'prev_day_ohlc'
+  | 'hma'
+  | 'roc'
+  | 'psar'
+  | 'vwap_bands';
 
 /** Base indicator configuration */
 export interface IndicatorConfig {
