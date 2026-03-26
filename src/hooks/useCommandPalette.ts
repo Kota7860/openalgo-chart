@@ -219,6 +219,7 @@ const buildCommands = (handlers: CommandPaletteHandlers): Command[] => {
     { id: 'ray', title: 'Ray', keywords: ['ray', 'line'] },
     { id: 'arrow', title: 'Arrow', keywords: ['arrow', 'pointer'] },
     { id: 'parallel_channel', title: 'Parallel Channel', keywords: ['channel', 'parallel'] },
+    { id: 'pitchfork', title: 'Andrews Pitchfork', keywords: ['pitchfork', 'andrews', 'median', 'fork'] },
     { id: 'fibonacci', title: 'Fibonacci Retracement', keywords: ['fibonacci', 'fib', 'retracement'] },
     { id: 'fib_extension', title: 'Fibonacci Extension', keywords: ['fibonacci', 'fib', 'extension'] },
     { id: 'rectangle', title: 'Rectangle', keywords: ['rectangle', 'box', 'shape'] },

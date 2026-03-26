@@ -21,10 +21,16 @@ export type { Divergence, DivergenceType } from './rsiDivergence';
 // Oscillators
 export { calculateRSI } from './rsi';
 export { calculateStochastic } from './stochastic';
+export { calculateStochasticRSI } from './stochasticRsi';
+export type { StochasticRSIResult } from './stochasticRsi';
 export { calculateCCI } from './cci';
 export { calculateMFI } from './mfi';
 export { calculateOBV } from './obv';
 export { calculateWilliamsR } from './williamsR';
+
+// Session / Day reference levels
+export { calculatePrevDayOHLC } from './prevDayOHLC';
+export type { PrevDayLevel, PrevDayResult } from './prevDayOHLC';
 
 // Momentum
 export { calculateMACD } from './macd';

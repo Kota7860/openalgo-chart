@@ -24,7 +24,9 @@ import {
     calculateDonchianChannel,
     calculateKeltnerChannel,
     calculateZigZag,
-    detectRSIDivergences
+    detectRSIDivergences,
+    calculateStochasticRSI,
+    calculatePrevDayOHLC
 } from '../../../utils/indicators';
 import { calculateANNStrategy } from '../../../utils/indicators/annStrategy';
 import { calculateHilengaMilenga } from '../../../utils/indicators/hilengaMilenga';
@@ -573,6 +575,64 @@ export const updateRSIDivergenceSeries = (series: any, ind: IndicatorConfig, dat
 };
 
 /**
+ * Update Stochastic RSI series
+ */
+export const updateStochasticRSISeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.k.applyOptions({ visible: isVisible, color: ind.kColor || '#2962FF' });
+    series.d.applyOptions({ visible: isVisible, color: ind.dColor || '#FF6D00' });
+    if (series.k._obLine) {
+        series.k._obLine.applyOptions({ price: ind.overbought ?? 80, color: ind.overboughtColor || CHART_COLORS.DOWN.primary });
+    }
+    if (series.k._osLine) {
+        series.k._osLine.applyOptions({ price: ind.oversold ?? 20, color: ind.oversoldColor || CHART_COLORS.UP.primary });
+    }
+    const val = calculateStochasticRSI(data, ind.rsiPeriod || 14, ind.stochPeriod || 14, ind.kSmooth || 3, ind.dSmooth || 3);
+    if (val) {
+        if (val.k.length > 0) series.k.setData(val.k);
+        if (val.d.length > 0) series.d.setData(val.d);
+    }
+};
+
+/**
+ * Update Previous Day OHLC Lines
+ */
+export const updatePrevDayOHLCSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    const showHigh  = ind.showHigh  !== false;
+    const showLow   = ind.showLow   !== false;
+    const showClose = ind.showClose !== false;
+    const showOpen  = ind.showOpen  === true;
+
+    series.high.applyOptions({  visible: isVisible && showHigh,  color: ind.highColor  || '#F23645', lineWidth: 1 });
+    series.low.applyOptions({   visible: isVisible && showLow,   color: ind.lowColor   || '#089981', lineWidth: 1 });
+    series.close.applyOptions({ visible: isVisible && showClose, color: ind.closeColor || '#B2B5BE', lineWidth: 1 });
+    series.open.applyOptions({  visible: isVisible && showOpen,  color: ind.openColor  || '#2962FF', lineWidth: 1 });
+
+    const result = calculatePrevDayOHLC(data, showOpen, showHigh, showLow, showClose);
+
+    // Group levels by label
+    const highData:  Array<{ time: number; value: number }> = [];
+    const lowData:   Array<{ time: number; value: number }> = [];
+    const closeData: Array<{ time: number; value: number }> = [];
+    const openData:  Array<{ time: number; value: number }> = [];
+
+    // Deduplicate: only one entry per time per label (take first occurrence)
+    const seen = { PDH: new Set<number>(), PDL: new Set<number>(), PDC: new Set<number>(), PDO: new Set<number>() };
+    for (const lv of result.levels) {
+        if (seen[lv.label].has(lv.time)) continue;
+        seen[lv.label].add(lv.time);
+        if      (lv.label === 'PDH') highData.push({ time: lv.time, value: lv.value });
+        else if (lv.label === 'PDL') lowData.push({ time: lv.time, value: lv.value });
+        else if (lv.label === 'PDC') closeData.push({ time: lv.time, value: lv.value });
+        else if (lv.label === 'PDO') openData.push({ time: lv.time, value: lv.value });
+    }
+
+    series.high.setData(highData);
+    series.low.setData(lowData);
+    series.close.setData(closeData);
+    series.open.setData(openData);
+};
+
+/**
  * Main update function - updates series for any indicator type
  * @returns markers (for indicators that generate markers like ANN Strategy)
  */
@@ -666,6 +726,14 @@ export const updateIndicatorSeries = (series: any, ind: IndicatorConfig, data: O
 
         case 'rsi_divergence':
             return updateRSIDivergenceSeries(series, ind, data, isVisible);
+
+        case 'stochastic_rsi':
+            updateStochasticRSISeries(series, ind, data, isVisible);
+            return [];
+
+        case 'prev_day_ohlc':
+            updatePrevDayOHLCSeries(series, ind, data, isVisible);
+            return [];
 
         default:
             return [];

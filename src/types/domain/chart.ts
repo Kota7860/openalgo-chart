@@ -54,7 +54,9 @@ export type IndicatorType =
   | 'donchian'
   | 'keltner'
   | 'zigzag'
-  | 'rsi_divergence';
+  | 'rsi_divergence'
+  | 'stochastic_rsi'
+  | 'prev_day_ohlc';
 
 /** Base indicator configuration */
 export interface IndicatorConfig {

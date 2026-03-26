@@ -10,6 +10,7 @@ import {
     HistogramSeries
 } from 'lightweight-charts';
 import { CHART_COLORS } from '../../../utils/colorUtils';
+import { ZigZagPrimitive } from '../../../plugins/zigzag/ZigZagPrimitive';
 
 export interface IndicatorConfig {
     type: string;
@@ -655,8 +656,6 @@ export const createKeltnerSeries = (chart: any): any => {
  * Create ZigZag series — attaches ZigZagPrimitive for canvas rendering
  */
 export const createZigZagSeries = (chart: any): any => {
-    // Import done lazily to avoid circular dep issues
-    const { ZigZagPrimitive } = require('../../../plugins/zigzag/ZigZagPrimitive');
     // Host series: invisible, just used as the primitive attachment point
     const series = chart.addSeries(LineSeries, {
         lineWidth: 0,
@@ -682,6 +681,57 @@ export const createRSIDivergenceSeries = (chart: any): any => {
         crosshairMarkerVisible: false,
         visible: false
     });
+};
+
+/**
+ * Create Stochastic RSI series in separate pane (%K and %D lines)
+ */
+export const createStochasticRSISeries = (chart: any): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const series = {
+        k: pane.addSeries(LineSeries, {
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: ''
+        }),
+        d: pane.addSeries(LineSeries, {
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: ''
+        })
+    };
+    // Add OB/OS reference lines on the %K series
+    (series.k as any)._obLine = series.k.createPriceLine({
+        price: 80,
+        color: '#F23645',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    (series.k as any)._osLine = series.k.createPriceLine({
+        price: 20,
+        color: '#089981',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    return { series, pane };
+};
+
+/**
+ * Create Previous Day OHLC Lines series (4 overlay LineSeries on main chart)
+ */
+export const createPrevDayOHLCSeries = (chart: any): any => {
+    return {
+        high:  chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 1, priceLineVisible: false, lastValueVisible: false }),
+        low:   chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 1, priceLineVisible: false, lastValueVisible: false }),
+        close: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false }),
+        open:  chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 4, priceLineVisible: false, lastValueVisible: false })
+    };
 };
 
 /**
@@ -815,6 +865,14 @@ export const createIndicatorSeries = (chart: any, ind: IndicatorConfig, isVisibl
 
         case 'rsi_divergence':
             return { series: createRSIDivergenceSeries(chart) };
+
+        case 'stochastic_rsi': {
+            const result = createStochasticRSISeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'prev_day_ohlc':
+            return { series: createPrevDayOHLCSeries(chart) };
 
         default:
             return null;

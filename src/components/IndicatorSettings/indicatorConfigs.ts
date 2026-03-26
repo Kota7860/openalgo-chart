@@ -494,6 +494,43 @@ export const indicatorConfigs: Record<string, IndicatorConfigDefinition> = {
             { key: 'bearColor', label: 'Bearish Color', type: 'color', default: '#EF5350' },
         ],
     },
+    stochastic_rsi: {
+        name: 'Stoch RSI',
+        fullName: 'Stochastic RSI',
+        pane: 'stoch_rsi',
+        inputs: [
+            { key: 'rsiPeriod',  label: 'RSI Length',   type: 'number', min: 2,  max: 100, default: 14 },
+            { key: 'stochPeriod',label: 'Stoch Length',  type: 'number', min: 2,  max: 100, default: 14 },
+            { key: 'kSmooth',    label: '%K Smoothing',  type: 'number', min: 1,  max: 10,  default: 3  },
+            { key: 'dSmooth',    label: '%D Smoothing',  type: 'number', min: 1,  max: 10,  default: 3  },
+            { key: 'overbought', label: 'Overbought',    type: 'number', min: 50, max: 100, default: 80 },
+            { key: 'oversold',   label: 'Oversold',      type: 'number', min: 0,  max: 50,  default: 20 },
+        ],
+        style: [
+            { key: 'kColor',         label: '%K Line',        type: 'color', default: '#2962FF' },
+            { key: 'dColor',         label: '%D Line',        type: 'color', default: '#FF6D00' },
+            { key: 'overboughtColor',label: 'Overbought Line',type: 'color', default: '#F23645' },
+            { key: 'oversoldColor',  label: 'Oversold Line',  type: 'color', default: '#089981' },
+        ],
+    },
+
+    prev_day_ohlc: {
+        name: 'Prev Day',
+        fullName: 'Previous Day OHLC',
+        pane: 'main',
+        inputs: [
+            { key: 'showHigh',  label: 'Show PDH', type: 'boolean', default: true  },
+            { key: 'showLow',   label: 'Show PDL', type: 'boolean', default: true  },
+            { key: 'showClose', label: 'Show PDC', type: 'boolean', default: true  },
+            { key: 'showOpen',  label: 'Show PDO', type: 'boolean', default: false },
+        ],
+        style: [
+            { key: 'highColor',  label: 'PDH Color',   type: 'color', default: '#F23645' },
+            { key: 'lowColor',   label: 'PDL Color',   type: 'color', default: '#089981' },
+            { key: 'closeColor', label: 'PDC Color',   type: 'color', default: '#B2B5BE' },
+            { key: 'openColor',  label: 'PDO Color',   type: 'color', default: '#2962FF' },
+        ],
+    },
 };
 
 
