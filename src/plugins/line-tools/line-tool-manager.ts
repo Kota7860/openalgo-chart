@@ -36,10 +36,12 @@ import { PriceLabel } from './tools/price-label';
 import { DatePriceRange } from './tools/date-price-range';
 import { Measure } from './tools/measure';
 import { HeadAndShoulders } from './tools/head-and-shoulders';
+import { Pitchfork } from './tools/pitchfork';
+import { FibTimeZones } from './tools/fib-time-zones';
 import { HistoryManager, ToolState, extractToolState, applyToolState } from './history-manager';
 import { TextInputDialog } from './text-input-dialog';
 
-export type ToolType = 'TrendLine' | 'HorizontalLine' | 'VerticalLine' | 'Rectangle' | 'Text' | 'ParallelChannel' | 'FibRetracement' | 'Triangle' | 'Brush' | 'Callout' | 'CrossLine' | 'Circle' | 'Highlighter' | 'Path' | 'Arrow' | 'Ray' | 'ExtendedLine' | 'HorizontalRay' | 'PriceRange' | 'LongPosition' | 'ShortPosition' | 'ElliottImpulseWave' | 'ElliottCorrectionWave' | 'DateRange' | 'FibExtension' | 'UserPriceAlerts' | 'Eraser' | 'PriceLabel' | 'DatePriceRange' | 'Measure' | 'HeadAndShoulders' | 'None';
+export type ToolType = 'TrendLine' | 'HorizontalLine' | 'VerticalLine' | 'Rectangle' | 'Text' | 'ParallelChannel' | 'FibRetracement' | 'Triangle' | 'Brush' | 'Callout' | 'CrossLine' | 'Circle' | 'Highlighter' | 'Path' | 'Arrow' | 'Ray' | 'ExtendedLine' | 'HorizontalRay' | 'PriceRange' | 'LongPosition' | 'ShortPosition' | 'ElliottImpulseWave' | 'ElliottCorrectionWave' | 'DateRange' | 'FibExtension' | 'UserPriceAlerts' | 'Eraser' | 'PriceLabel' | 'DatePriceRange' | 'Measure' | 'HeadAndShoulders' | 'Pitchfork' | 'FibTimeZones' | 'None';
 
 /**
  * State information for an active drag operation
@@ -56,7 +58,7 @@ interface DragState {
 export class LineToolManager extends PluginBase {
     public onToolCompleted: ((tool?: string) => void) | null = null;
     private _activeToolType: ToolType = 'None';
-    private _activeTool: TrendLine | HorizontalLine | VerticalLine | Rectangle | Text | ParallelChannel | FibRetracement | Triangle | Polyline | Callout | CrossLine | Circle | Path | PriceRange | LongPosition | ShortPosition | ElliottImpulseWave | ElliottCorrectionWave | DateRange | FibExtension | HorizontalRay | PriceLabel | DatePriceRange | Measure | HeadAndShoulders | null = null;
+    private _activeTool: TrendLine | HorizontalLine | VerticalLine | Rectangle | Text | ParallelChannel | FibRetracement | Triangle | Polyline | Callout | CrossLine | Circle | Path | PriceRange | LongPosition | ShortPosition | ElliottImpulseWave | ElliottCorrectionWave | DateRange | FibExtension | HorizontalRay | PriceLabel | DatePriceRange | Measure | HeadAndShoulders | Pitchfork | FibTimeZones | null = null;
     private _points: LogicalPoint[] = [];
     private _tools: any[] = []; // Store all created tools
     private _toolOptions: Map<ToolType, any> = new Map(); // Store default options for each tool type
@@ -182,7 +184,7 @@ export class LineToolManager extends PluginBase {
             'ExtendedLine', 'HorizontalRay', 'PriceRange', 'LongPosition',
             'ShortPosition', 'ElliottImpulseWave', 'ElliottCorrectionWave',
             'DateRange', 'FibExtension', 'UserPriceAlerts', 'Eraser', 'PriceLabel',
-            'DatePriceRange', 'Measure', 'HeadAndShoulders'
+            'DatePriceRange', 'Measure', 'HeadAndShoulders', 'Pitchfork', 'FibTimeZones'
         ];
 
         tools.forEach(type => {
@@ -531,7 +533,8 @@ export class LineToolManager extends PluginBase {
             tool instanceof HorizontalRay ||
             tool instanceof VerticalLine ||
             tool instanceof Rectangle ||
-            tool instanceof ParallelChannel;
+            tool instanceof ParallelChannel ||
+            tool instanceof Pitchfork;
     }
 
     /**
@@ -1011,8 +1014,12 @@ export class LineToolManager extends PluginBase {
                 return new Triangle(this.chart, this.series, p(0), p(1), p(2), opts);
             case 'ParallelChannel':
                 return new ParallelChannel(this.chart, this.series, p(0), p(1), p(2), opts);
+            case 'Pitchfork':
+                return new Pitchfork(this.chart, this.series, p(0), p(1), p(2), opts);
             case 'FibRetracement':
                 return new FibRetracement(this.chart, this.series, p(0), p(1), opts);
+            case 'FibTimeZones':
+                return new FibTimeZones(this.chart, this.series, p(0), p(1), opts);
             case 'FibExtension':
                 return new FibExtension(this.chart, this.series, p(0), p(1), p(2), opts);
             case 'Arrow':
@@ -1615,6 +1622,33 @@ export class LineToolManager extends PluginBase {
                     this.onToolCompleted?.();
                 }
             }
+        } else if (this._activeToolType === 'Pitchfork') {
+            if (this._points.length === 1) {
+                const p1 = this._points[0] as LogicalPoint;
+                this._activeTool = new Pitchfork(this.chart, this.series, p1, p1, p1, this.getToolOptions(this._activeToolType));
+                this.series.attachPrimitive(this._activeTool);
+                this._addTool(this._activeTool, this._activeToolType);
+            } else if (this._points.length === 2) {
+                if (this._activeTool instanceof Pitchfork) {
+                    const p1 = this._points[0] as LogicalPoint;
+                    const p2 = this._points[1] as LogicalPoint;
+                    this._activeTool.updatePoints(p1, p2, p2);
+                }
+            } else if (this._points.length === 3) {
+                if (this._activeTool instanceof Pitchfork) {
+                    const p1 = this._points[0] as LogicalPoint;
+                    const p2 = this._points[1] as LogicalPoint;
+                    const p3 = this._points[2] as LogicalPoint;
+                    this._activeTool.updatePoints(p1, p2, p3);
+                    const finishedTool = this._activeTool;
+                    this._activeTool = null;
+                    this._points = [];
+                    this._selectTool(finishedTool);
+                    this._activeToolType = 'None';
+                    this._setChartInteraction(true);
+                    this.onToolCompleted?.();
+                }
+            }
         } else if (this._activeToolType === 'FibRetracement') {
             if (this._points.length === 1) {
                 const p1 = this._points[0] as LogicalPoint;
@@ -1634,6 +1668,26 @@ export class LineToolManager extends PluginBase {
                     this._activeToolType = 'None';
                     this._setChartInteraction(true);
 
+                    this.onToolCompleted?.();
+                }
+            }
+        } else if (this._activeToolType === 'FibTimeZones') {
+            if (this._points.length === 1) {
+                const p1 = this._points[0] as LogicalPoint;
+                this._activeTool = new FibTimeZones(this.chart, this.series, p1, p1, this.getToolOptions(this._activeToolType));
+                this.series.attachPrimitive(this._activeTool);
+                this._addTool(this._activeTool, this._activeToolType);
+            } else if (this._points.length === 2) {
+                if (this._activeTool instanceof FibTimeZones) {
+                    const p1 = this._points[0] as LogicalPoint;
+                    const p2 = this._points[1] as LogicalPoint;
+                    this._activeTool.updatePoints(p1, p2);
+                    const finishedTool = this._activeTool;
+                    this._activeTool = null;
+                    this._points = [];
+                    this._selectTool(finishedTool);
+                    this._activeToolType = 'None';
+                    this._setChartInteraction(true);
                     this.onToolCompleted?.();
                 }
             }
@@ -2184,8 +2238,34 @@ export class LineToolManager extends PluginBase {
                 this._activeTool.updatePoints(p1, logicalPoint);
                 this.chart.timeScale().applyOptions({});
             }
+        } else if (this._activeToolType === 'FibTimeZones' && this._activeTool instanceof FibTimeZones) {
+            const timeScale = this.chart.timeScale();
+            const x = param.point.x;
+            const logical = timeScale.coordinateToLogical(x);
+            if (logical !== null) {
+                const logicalPoint = { logical, price };
+                const p1 = this._points[0] as LogicalPoint;
+                this._activeTool.updatePoints(p1, logicalPoint);
+                this.chart.timeScale().applyOptions({});
+            }
         } else if (this._activeToolType === 'ParallelChannel' && this._activeTool instanceof ParallelChannel) {
             // Calculate logical point for smooth preview
+            const timeScale = this.chart.timeScale();
+            const x = param.point.x;
+            const logical = timeScale.coordinateToLogical(x);
+            if (logical !== null) {
+                const logicalPoint = { logical, price };
+                if (this._points.length === 1) {
+                    const p1 = this._points[0] as LogicalPoint;
+                    this._activeTool.updatePoints(p1, logicalPoint, logicalPoint);
+                } else if (this._points.length === 2) {
+                    const p1 = this._points[0] as LogicalPoint;
+                    const p2 = this._points[1] as LogicalPoint;
+                    this._activeTool.updatePoints(p1, p2, logicalPoint);
+                }
+                this.chart.timeScale().applyOptions({});
+            }
+        } else if (this._activeToolType === 'Pitchfork' && this._activeTool instanceof Pitchfork) {
             const timeScale = this.chart.timeScale();
             const x = param.point.x;
             const logical = timeScale.coordinateToLogical(x);

@@ -377,6 +377,280 @@ export const indicatorConfigs: Record<string, IndicatorConfigDefinition> = {
             { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 4, default: 2 },
         ],
     },
+
+    cci: {
+        name: 'CCI',
+        fullName: 'Commodity Channel Index',
+        pane: 'cci',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 1, max: 200, default: 20 },
+        ],
+        style: [
+            { key: 'color', label: 'CCI Line', type: 'color', default: '#2962FF' },
+            { key: 'overboughtColor', label: 'Overbought Line', type: 'color', default: '#F23645' },
+            { key: 'oversoldColor', label: 'Oversold Line', type: 'color', default: '#089981' },
+        ],
+    },
+
+    mfi: {
+        name: 'MFI',
+        fullName: 'Money Flow Index',
+        pane: 'mfi',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 1, max: 100, default: 14 },
+            { key: 'overbought', label: 'Overbought', type: 'number', min: 50, max: 100, default: 80 },
+            { key: 'oversold', label: 'Oversold', type: 'number', min: 0, max: 50, default: 20 },
+        ],
+        style: [
+            { key: 'color', label: 'MFI Line', type: 'color', default: '#00BCD4' },
+            { key: 'overboughtColor', label: 'Overbought Line', type: 'color', default: '#F23645' },
+            { key: 'oversoldColor', label: 'Oversold Line', type: 'color', default: '#089981' },
+        ],
+    },
+
+    obv: {
+        name: 'OBV',
+        fullName: 'On-Balance Volume',
+        pane: 'obv',
+        inputs: [],
+        style: [
+            { key: 'color', label: 'OBV Line', type: 'color', default: '#2962FF' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
+
+    willr: {
+        name: 'W%R',
+        fullName: 'Williams %R',
+        pane: 'willr',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 1, max: 100, default: 14 },
+            { key: 'overbought', label: 'Overbought', type: 'number', min: -50, max: 0, default: -20 },
+            { key: 'oversold', label: 'Oversold', type: 'number', min: -100, max: -50, default: -80 },
+        ],
+        style: [
+            { key: 'color', label: 'W%R Line', type: 'color', default: '#7B1FA2' },
+            { key: 'overboughtColor', label: 'Overbought Line', type: 'color', default: '#F23645' },
+            { key: 'oversoldColor', label: 'Oversold Line', type: 'color', default: '#089981' },
+        ],
+    },
+
+    donchian: {
+        name: 'Donchian',
+        fullName: 'Donchian Channel',
+        pane: 'main',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 2, max: 500, default: 20 },
+        ],
+        style: [
+            { key: 'upperColor', label: 'Upper Band', type: 'color', default: '#2962FF' },
+            { key: 'midColor', label: 'Mid Line', type: 'color', default: '#9E9E9E' },
+            { key: 'lowerColor', label: 'Lower Band', type: 'color', default: '#2962FF' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 1 },
+        ],
+    },
+
+    keltner: {
+        name: 'Keltner',
+        fullName: 'Keltner Channel',
+        pane: 'main',
+        inputs: [
+            { key: 'emaPeriod', label: 'EMA Length', type: 'number', min: 1, max: 200, default: 20 },
+            { key: 'atrPeriod', label: 'ATR Length', type: 'number', min: 1, max: 50, default: 10 },
+            { key: 'multiplier', label: 'Multiplier', type: 'number', min: 0.1, max: 10, step: 0.1, default: 2 },
+        ],
+        style: [
+            { key: 'upperColor', label: 'Upper Band', type: 'color', default: '#FF6D00' },
+            { key: 'midColor', label: 'Mid Line', type: 'color', default: '#9E9E9E' },
+            { key: 'lowerColor', label: 'Lower Band', type: 'color', default: '#FF6D00' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 1 },
+        ],
+    },
+
+    zigzag: {
+        name: 'ZigZag',
+        fullName: 'ZigZag',
+        pane: 'main',
+        inputs: [
+            { key: 'deviation', label: 'Deviation %', type: 'number', min: 0.1, max: 20, step: 0.1, default: 5 },
+        ],
+        style: [
+            { key: 'color', label: 'Line Color', type: 'color', default: '#FF9800' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 2 },
+            { key: 'showLabels', label: 'Show H/L Labels', type: 'boolean', default: true },
+        ],
+    },
+
+    rsi_divergence: {
+        name: 'RSI Div',
+        fullName: 'RSI Divergence',
+        pane: 'main',
+        inputs: [
+            { key: 'rsiPeriod', label: 'RSI Length', type: 'number', min: 2, max: 50, default: 14 },
+            { key: 'swingLookback', label: 'Swing Lookback', type: 'number', min: 2, max: 10, default: 5 },
+        ],
+        style: [
+            { key: 'bullColor', label: 'Bullish Color', type: 'color', default: '#26A69A' },
+            { key: 'bearColor', label: 'Bearish Color', type: 'color', default: '#EF5350' },
+        ],
+    },
+    stochastic_rsi: {
+        name: 'Stoch RSI',
+        fullName: 'Stochastic RSI',
+        pane: 'stoch_rsi',
+        inputs: [
+            { key: 'rsiPeriod',  label: 'RSI Length',   type: 'number', min: 2,  max: 100, default: 14 },
+            { key: 'stochPeriod',label: 'Stoch Length',  type: 'number', min: 2,  max: 100, default: 14 },
+            { key: 'kSmooth',    label: '%K Smoothing',  type: 'number', min: 1,  max: 10,  default: 3  },
+            { key: 'dSmooth',    label: '%D Smoothing',  type: 'number', min: 1,  max: 10,  default: 3  },
+            { key: 'overbought', label: 'Overbought',    type: 'number', min: 50, max: 100, default: 80 },
+            { key: 'oversold',   label: 'Oversold',      type: 'number', min: 0,  max: 50,  default: 20 },
+        ],
+        style: [
+            { key: 'kColor',         label: '%K Line',        type: 'color', default: '#2962FF' },
+            { key: 'dColor',         label: '%D Line',        type: 'color', default: '#FF6D00' },
+            { key: 'overboughtColor',label: 'Overbought Line',type: 'color', default: '#F23645' },
+            { key: 'oversoldColor',  label: 'Oversold Line',  type: 'color', default: '#089981' },
+        ],
+    },
+
+    prev_day_ohlc: {
+        name: 'Prev Day',
+        fullName: 'Previous Day OHLC',
+        pane: 'main',
+        inputs: [
+            { key: 'showHigh',  label: 'Show PDH', type: 'boolean', default: true  },
+            { key: 'showLow',   label: 'Show PDL', type: 'boolean', default: true  },
+            { key: 'showClose', label: 'Show PDC', type: 'boolean', default: true  },
+            { key: 'showOpen',  label: 'Show PDO', type: 'boolean', default: false },
+        ],
+        style: [
+            { key: 'highColor',  label: 'PDH Color',   type: 'color', default: '#F23645' },
+            { key: 'lowColor',   label: 'PDL Color',   type: 'color', default: '#089981' },
+            { key: 'closeColor', label: 'PDC Color',   type: 'color', default: '#B2B5BE' },
+            { key: 'openColor',  label: 'PDO Color',   type: 'color', default: '#2962FF' },
+        ],
+    },
+
+    hma: {
+        name: 'HMA',
+        fullName: 'Hull Moving Average',
+        pane: 'main',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 2, max: 500, default: 20 },
+            { key: 'source', label: 'Source', type: 'select', options: ['open', 'high', 'low', 'close'], default: 'close' },
+        ],
+        style: [
+            { key: 'color', label: 'Line Color', type: 'color', default: '#00BCD4' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
+
+    roc: {
+        name: 'ROC',
+        fullName: 'Rate of Change',
+        pane: 'roc',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 1, max: 200, default: 14 },
+        ],
+        style: [
+            { key: 'color', label: 'Line Color', type: 'color', default: '#FF9800' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
+
+    psar: {
+        name: 'PSAR',
+        fullName: 'Parabolic SAR',
+        pane: 'main',
+        inputs: [
+            { key: 'step',  label: 'Step',   type: 'number', min: 0.001, max: 0.1,  step: 0.001, default: 0.02 },
+            { key: 'maxAF', label: 'Max AF', type: 'number', min: 0.1,   max: 0.5,  step: 0.01,  default: 0.2  },
+        ],
+        style: [
+            { key: 'upColor',   label: 'Bullish Dots',  type: 'color', default: '#26A69A' },
+            { key: 'downColor', label: 'Bearish Dots',  type: 'color', default: '#EF5350' },
+        ],
+    },
+
+    vwap_bands: {
+        name: 'VWAP Bands',
+        fullName: 'VWAP with Standard Deviation Bands',
+        pane: 'main',
+        inputs: [
+            { key: 'multiplier1', label: 'Band 1 Mult', type: 'number', min: 0.1, max: 5, step: 0.1, default: 1 },
+            { key: 'multiplier2', label: 'Band 2 Mult', type: 'number', min: 0.1, max: 5, step: 0.1, default: 2 },
+            { key: 'resetDaily',  label: 'Daily Reset',  type: 'boolean', default: true },
+        ],
+        style: [
+            { key: 'vwapColor',   label: 'VWAP Line',   type: 'color', default: '#2962FF' },
+            { key: 'band1Color',  label: 'Band 1 Color', type: 'color', default: '#FF9800' },
+            { key: 'band2Color',  label: 'Band 2 Color', type: 'color', default: '#9C27B0' },
+            { key: 'lineWidth',   label: 'Line Width',   type: 'number', min: 1, max: 5, default: 1 },
+        ],
+    },
+
+    candle_patterns: {
+        name: 'Candle Patterns',
+        fullName: 'Candlestick Pattern Recognition',
+        pane: 'main',
+        description: 'Auto-detects and labels 15+ classic candlestick patterns on the chart',
+        inputs: [
+            { key: 'showDoji',               label: 'Doji',               type: 'boolean', default: true  },
+            { key: 'showHammer',             label: 'Hammer',             type: 'boolean', default: true  },
+            { key: 'showInvertedHammer',     label: 'Inverted Hammer',    type: 'boolean', default: true  },
+            { key: 'showShootingStar',       label: 'Shooting Star',      type: 'boolean', default: true  },
+            { key: 'showSpinningTop',        label: 'Spinning Top',       type: 'boolean', default: false },
+            { key: 'showMarubozu',           label: 'Marubozu',           type: 'boolean', default: false },
+            { key: 'showEngulfing',          label: 'Engulfing',          type: 'boolean', default: true  },
+            { key: 'showPiercingDarkCloud',  label: 'Piercing/Dark Cloud',type: 'boolean', default: true  },
+            { key: 'showHarami',             label: 'Harami',             type: 'boolean', default: true  },
+            { key: 'showMorningStar',        label: 'Morning Star',       type: 'boolean', default: true  },
+            { key: 'showEveningStar',        label: 'Evening Star',       type: 'boolean', default: true  },
+            { key: 'showThreeSoldiersCrows', label: '3 Soldiers/Crows',   type: 'boolean', default: true  },
+            { key: 'showLabels',             label: 'Show Labels',        type: 'boolean', default: true  },
+        ],
+        style: [
+            { key: 'bullColor',    label: 'Bullish',  type: 'color', default: '#26A69A' },
+            { key: 'bearColor',    label: 'Bearish',  type: 'color', default: '#EF5350' },
+            { key: 'neutralColor', label: 'Neutral',  type: 'color', default: '#9E9E9E' },
+        ],
+    },
+
+    squeeze: {
+        name: 'Squeeze',
+        fullName: 'Squeeze Momentum (LazyBear)',
+        pane: 'squeeze',
+        description: 'Low-volatility squeeze detection using Bollinger Bands vs Keltner Channel',
+        inputs: [
+            { key: 'bbPeriod', label: 'BB Length', type: 'number', min: 2, max: 100, default: 20  },
+            { key: 'bbMult',   label: 'BB Mult',   type: 'number', min: 0.5, max: 5, step: 0.5, default: 2.0 },
+            { key: 'kcPeriod', label: 'KC Length', type: 'number', min: 2, max: 100, default: 20  },
+            { key: 'kcMult',   label: 'KC Mult',   type: 'number', min: 0.1, max: 5, step: 0.1, default: 1.5 },
+        ],
+        style: [
+            { key: 'bullColor',   label: 'Momentum Up',     type: 'color', default: '#26A69A' },
+            { key: 'bearColor',   label: 'Momentum Down',   type: 'color', default: '#EF5350' },
+            { key: 'sqzOnColor',  label: 'Squeeze ON dot',  type: 'color', default: '#F23645' },
+            { key: 'sqzOffColor', label: 'Squeeze OFF dot', type: 'color', default: '#089981' },
+        ],
+    },
+
+    linear_regression: {
+        name: 'LR Channel',
+        fullName: 'Linear Regression Channel',
+        pane: 'main',
+        inputs: [
+            { key: 'period',     label: 'Length',      type: 'number', min: 10, max: 500, default: 100 },
+            { key: 'multiplier', label: 'StdDev Mult', type: 'number', min: 0.1, max: 5, step: 0.1, default: 2.0 },
+            { key: 'source',     label: 'Source',      type: 'select', options: ['close', 'open', 'high', 'low', 'hl2', 'hlc3'], default: 'close' },
+        ],
+        style: [
+            { key: 'midColor',  label: 'Regression Line', type: 'color', default: '#2962FF' },
+            { key: 'bandColor', label: 'Band Color',       type: 'color', default: '#FF6D00' },
+            { key: 'lineWidth', label: 'Line Width',        type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
 };
 
 

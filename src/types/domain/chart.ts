@@ -50,7 +50,20 @@ export type IndicatorType =
   | 'cci'
   | 'mfi'
   | 'obv'
-  | 'willr';
+  | 'willr'
+  | 'donchian'
+  | 'keltner'
+  | 'zigzag'
+  | 'rsi_divergence'
+  | 'stochastic_rsi'
+  | 'prev_day_ohlc'
+  | 'hma'
+  | 'roc'
+  | 'psar'
+  | 'vwap_bands'
+  | 'candle_patterns'
+  | 'squeeze'
+  | 'linear_regression';
 
 /** Base indicator configuration */
 export interface IndicatorConfig {

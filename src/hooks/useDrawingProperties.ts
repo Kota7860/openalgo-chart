@@ -111,6 +111,8 @@ const DRAWING_TOOLS = [
   'ExtendedLine',
   'ParallelChannel',
   'FibonacciRetracement',
+  'Pitchfork',
+  'FibTimeZones',
 ] as const;
 
 // ==================== HOOK ====================

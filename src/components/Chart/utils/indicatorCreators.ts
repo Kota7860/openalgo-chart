@@ -10,6 +10,7 @@ import {
     HistogramSeries
 } from 'lightweight-charts';
 import { CHART_COLORS } from '../../../utils/colorUtils';
+import { ZigZagPrimitive } from '../../../plugins/zigzag/ZigZagPrimitive';
 
 export interface IndicatorConfig {
     type: string;
@@ -504,6 +505,337 @@ export const createPivotPointsSeries = (chart: any, ind: IndicatorConfig): any =
 };
 
 /**
+ * Create CCI series in separate pane with ±100 reference lines
+ */
+export const createCCISeries = (chart: any, ind: IndicatorConfig): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const series = pane.addSeries(LineSeries, {
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true
+    });
+    (series as any)._obLine = series.createPriceLine({
+        price: ind.overbought ?? 100,
+        color: ind.overboughtColor || '#F23645',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    (series as any)._osLine = series.createPriceLine({
+        price: ind.oversold ?? -100,
+        color: ind.oversoldColor || '#089981',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    return { series, pane };
+};
+
+/**
+ * Create MFI series in separate pane with overbought/oversold lines
+ */
+export const createMFISeries = (chart: any, ind: IndicatorConfig): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const series = pane.addSeries(LineSeries, {
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true
+    });
+    (series as any)._obLine = series.createPriceLine({
+        price: ind.overbought ?? 80,
+        color: ind.overboughtColor || '#F23645',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    (series as any)._osLine = series.createPriceLine({
+        price: ind.oversold ?? 20,
+        color: ind.oversoldColor || '#089981',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    return { series, pane };
+};
+
+/**
+ * Create OBV series in separate pane
+ */
+export const createOBVSeries = (chart: any): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const series = pane.addSeries(LineSeries, {
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true
+    });
+    return { series, pane };
+};
+
+/**
+ * Create Williams %R series in separate pane with -20/-80 reference lines
+ */
+export const createWilliamsRSeries = (chart: any, ind: IndicatorConfig): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const series = pane.addSeries(LineSeries, {
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true
+    });
+    (series as any)._obLine = series.createPriceLine({
+        price: ind.overbought ?? -20,
+        color: ind.overboughtColor || '#F23645',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    (series as any)._osLine = series.createPriceLine({
+        price: ind.oversold ?? -80,
+        color: ind.oversoldColor || '#089981',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    return { series, pane };
+};
+
+/**
+ * Create Donchian Channel series (3 overlay lines on main chart)
+ */
+export const createDonchianSeries = (chart: any): any => {
+    return {
+        upper: chart.addSeries(LineSeries, {
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false
+        }),
+        mid: chart.addSeries(LineSeries, {
+            lineWidth: 1,
+            lineStyle: 2,
+            priceLineVisible: false,
+            lastValueVisible: false
+        }),
+        lower: chart.addSeries(LineSeries, {
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false
+        })
+    };
+};
+
+/**
+ * Create Keltner Channel series (3 overlay lines on main chart)
+ */
+export const createKeltnerSeries = (chart: any): any => {
+    return {
+        upper: chart.addSeries(LineSeries, {
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false
+        }),
+        mid: chart.addSeries(LineSeries, {
+            lineWidth: 1,
+            lineStyle: 2,
+            priceLineVisible: false,
+            lastValueVisible: false
+        }),
+        lower: chart.addSeries(LineSeries, {
+            lineWidth: 1,
+            priceLineVisible: false,
+            lastValueVisible: false
+        })
+    };
+};
+
+/**
+ * Create ZigZag series — attaches ZigZagPrimitive for canvas rendering
+ */
+export const createZigZagSeries = (chart: any): any => {
+    // Host series: invisible, just used as the primitive attachment point
+    const series = chart.addSeries(LineSeries, {
+        lineWidth: 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        visible: false
+    });
+    const primitive = new ZigZagPrimitive();
+    series.attachPrimitive(primitive);
+    (series as any)._primitive = primitive;
+    return series;
+};
+
+/**
+ * Create RSI Divergence series (invisible host on main chart — emits markers only)
+ */
+export const createRSIDivergenceSeries = (chart: any): any => {
+    return chart.addSeries(LineSeries, {
+        lineWidth: 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        visible: false
+    });
+};
+
+/**
+ * Create Stochastic RSI series in separate pane (%K and %D lines)
+ */
+export const createStochasticRSISeries = (chart: any): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const series = {
+        k: pane.addSeries(LineSeries, {
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: ''
+        }),
+        d: pane.addSeries(LineSeries, {
+            lineWidth: 2,
+            priceLineVisible: false,
+            lastValueVisible: true,
+            title: ''
+        })
+    };
+    // Add OB/OS reference lines on the %K series
+    (series.k as any)._obLine = series.k.createPriceLine({
+        price: 80,
+        color: '#F23645',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    (series.k as any)._osLine = series.k.createPriceLine({
+        price: 20,
+        color: '#089981',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    return { series, pane };
+};
+
+/**
+ * Create Previous Day OHLC Lines series (4 overlay LineSeries on main chart)
+ */
+export const createPrevDayOHLCSeries = (chart: any): any => {
+    return {
+        high:  chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 1, priceLineVisible: false, lastValueVisible: false }),
+        low:   chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 1, priceLineVisible: false, lastValueVisible: false }),
+        close: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false }),
+        open:  chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 4, priceLineVisible: false, lastValueVisible: false })
+    };
+};
+
+/**
+ * Create HMA series (overlay on main chart)
+ */
+export const createHMASeries = (chart: any): any => {
+    return chart.addSeries(LineSeries, {
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false
+    });
+};
+
+/**
+ * Create ROC series in separate pane with zero reference line
+ */
+export const createROCSeries = (chart: any): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const series = pane.addSeries(LineSeries, {
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true
+    });
+    (series as any)._zeroLine = series.createPriceLine({
+        price: 0,
+        color: '#666666',
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: false,
+        title: ''
+    });
+    return { series, pane };
+};
+
+/**
+ * Create Parabolic SAR series — invisible host line on main chart (markers returned by updater)
+ */
+export const createPSARSeries = (chart: any): any => {
+    return chart.addSeries(LineSeries, {
+        lineWidth: 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        visible: false
+    });
+};
+
+/**
+ * Create Candlestick Patterns series — invisible host on main chart (markers returned by updater)
+ */
+export const createCandlePatternsSeries = (chart: any): any => {
+    return chart.addSeries(LineSeries, {
+        lineWidth: 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        visible: false
+    });
+};
+
+/**
+ * Create Squeeze Momentum series — histogram + dot overlay in separate pane
+ */
+export const createSqueezeSeries = (chart: any): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 120 });
+    const histSeries = pane.addSeries(HistogramSeries, {
+        priceLineVisible: false,
+        lastValueVisible: true
+    });
+    // Attach dot series to the same pane (LineSeries with markers for squeeze dots)
+    const dotSeries = pane.addSeries(LineSeries, {
+        lineWidth: 0,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false
+    });
+    return { series: { hist: histSeries, dots: dotSeries }, pane };
+};
+
+/**
+ * Create Linear Regression Channel series — 3 overlay lines on main chart
+ */
+export const createLinearRegressionSeries = (chart: any): any => {
+    return {
+        mid:   chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: false }),
+        upper: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false }),
+        lower: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false })
+    };
+};
+
+/**
+ * Create VWAP Bands series — 5 overlay lines (VWAP + 2 upper + 2 lower SD bands)
+ */
+export const createVWAPBandsSeries = (chart: any): any => {
+    return {
+        vwap:   chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: false }),
+        upper1: chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: false }),
+        lower1: chart.addSeries(LineSeries, { lineWidth: 1, priceLineVisible: false, lastValueVisible: false }),
+        upper2: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false }),
+        lower2: chart.addSeries(LineSeries, { lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false })
+    };
+};
+
+/**
  * Create Pine Script indicator series
  * Creates a simple line series for each plot in the Pine Script
  */
@@ -602,6 +934,71 @@ export const createIndicatorSeries = (chart: any, ind: IndicatorConfig, isVisibl
             const result = createPineSeries(chart, ind, isVisible);
             return { series: result.series, pane: result.pane };
         }
+
+        case 'cci': {
+            const result = createCCISeries(chart, ind);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'mfi': {
+            const result = createMFISeries(chart, ind);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'obv': {
+            const result = createOBVSeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'willr': {
+            const result = createWilliamsRSeries(chart, ind);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'donchian':
+            return { series: createDonchianSeries(chart) };
+
+        case 'keltner':
+            return { series: createKeltnerSeries(chart) };
+
+        case 'zigzag':
+            return { series: createZigZagSeries(chart) };
+
+        case 'rsi_divergence':
+            return { series: createRSIDivergenceSeries(chart) };
+
+        case 'stochastic_rsi': {
+            const result = createStochasticRSISeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'prev_day_ohlc':
+            return { series: createPrevDayOHLCSeries(chart) };
+
+        case 'hma':
+            return { series: createHMASeries(chart) };
+
+        case 'roc': {
+            const result = createROCSeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'psar':
+            return { series: createPSARSeries(chart) };
+
+        case 'vwap_bands':
+            return { series: createVWAPBandsSeries(chart) };
+
+        case 'candle_patterns':
+            return { series: createCandlePatternsSeries(chart) };
+
+        case 'squeeze': {
+            const result = createSqueezeSeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'linear_regression':
+            return { series: createLinearRegressionSeries(chart) };
 
         default:
             return null;

@@ -9,10 +9,48 @@ export * from './types';
 // Moving Averages
 export { calculateSMA } from './sma';
 export { calculateEMA } from './ema';
+export { calculateHMA } from './hma';
+
+// Linear Regression Channel
+export { calculateLinearRegression } from './linearRegression';
+export type { LinearRegressionResult } from './linearRegression';
+
+// Squeeze Momentum
+export { calculateSqueeze } from './squeeze';
+export type { SqueezeResult } from './squeeze';
+
+// Candlestick Pattern Recognition
+export { detectCandlePatterns } from './candlePatterns';
+export type { CandlePattern, CandlePatternOptions, PatternBias } from './candlePatterns';
+
+// Trend / Stop
+export { calculateParabolicSAR } from './parabolicSar';
+export type { SARPoint } from './parabolicSar';
+
+// Momentum
+export { calculateROC } from './roc';
+
+// ZigZag
+export { calculateZigZag } from './zigzag';
+export type { ZigZagPoint } from './zigzag';
+
+// RSI Divergence
+export { detectRSIDivergences } from './rsiDivergence';
+export type { Divergence, DivergenceType } from './rsiDivergence';
 
 // Oscillators
 export { calculateRSI } from './rsi';
 export { calculateStochastic } from './stochastic';
+export { calculateStochasticRSI } from './stochasticRsi';
+export type { StochasticRSIResult } from './stochasticRsi';
+export { calculateCCI } from './cci';
+export { calculateMFI } from './mfi';
+export { calculateOBV } from './obv';
+export { calculateWilliamsR } from './williamsR';
+
+// Session / Day reference levels
+export { calculatePrevDayOHLC } from './prevDayOHLC';
+export type { PrevDayLevel, PrevDayResult } from './prevDayOHLC';
 
 // Momentum
 export { calculateMACD } from './macd';
@@ -20,6 +58,10 @@ export { calculateMACD } from './macd';
 // Volatility
 export { calculateBollingerBands } from './bollingerBands';
 export { calculateATR } from './atr';
+export { calculateDonchianChannel } from './donchianChannel';
+export type { DonchianResult } from './donchianChannel';
+export { calculateKeltnerChannel } from './keltnerChannel';
+export type { KeltnerResult } from './keltnerChannel';
 
 // Trend
 export { calculateSupertrend } from './supertrend';
