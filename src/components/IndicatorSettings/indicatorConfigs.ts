@@ -651,6 +651,83 @@ export const indicatorConfigs: Record<string, IndicatorConfigDefinition> = {
             { key: 'lineWidth', label: 'Line Width',        type: 'number', min: 1, max: 5, default: 2 },
         ],
     },
+
+    alligator: {
+        name: 'Alligator',
+        fullName: 'Williams Alligator',
+        pane: 'main',
+        description: 'Three smoothed moving averages (Jaw, Teeth, Lips) shifted forward in time to reveal trend direction',
+        inputs: [
+            { key: 'jawPeriod',   label: 'Jaw Period',    type: 'number', min: 2, max: 100, default: 13 },
+            { key: 'jawOffset',   label: 'Jaw Offset',    type: 'number', min: 0, max: 20,  default: 8  },
+            { key: 'teethPeriod', label: 'Teeth Period',  type: 'number', min: 2, max: 100, default: 8  },
+            { key: 'teethOffset', label: 'Teeth Offset',  type: 'number', min: 0, max: 20,  default: 5  },
+            { key: 'lipsPeriod',  label: 'Lips Period',   type: 'number', min: 2, max: 100, default: 5  },
+            { key: 'lipsOffset',  label: 'Lips Offset',   type: 'number', min: 0, max: 20,  default: 3  },
+        ],
+        style: [
+            { key: 'jawColor',   label: 'Jaw Color (Blue)',   type: 'color', default: '#2196F3' },
+            { key: 'teethColor', label: 'Teeth Color (Red)',  type: 'color', default: '#EF5350' },
+            { key: 'lipsColor',  label: 'Lips Color (Green)', type: 'color', default: '#4CAF50' },
+            { key: 'lineWidth',  label: 'Line Width',         type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
+
+    aroon: {
+        name: 'Aroon',
+        fullName: 'Aroon Indicator',
+        pane: 'aroon',
+        description: 'Measures how recently the highest high and lowest low occurred to gauge trend direction and strength',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 2, max: 200, default: 25 },
+        ],
+        style: [
+            { key: 'upColor',   label: 'Aroon Up Color',   type: 'color', default: '#26A69A' },
+            { key: 'downColor', label: 'Aroon Down Color', type: 'color', default: '#EF5350' },
+            { key: 'lineWidth', label: 'Line Width',       type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
+
+    awesome_oscillator: {
+        name: 'AO',
+        fullName: 'Awesome Oscillator',
+        pane: 'ao',
+        description: 'Bill Williams AO: 5-period SMA of midpoints minus 34-period SMA of midpoints',
+        inputs: [],
+        style: [
+            { key: 'upColor',   label: 'Rising Bar',  type: 'color', default: '#26A69A' },
+            { key: 'downColor', label: 'Falling Bar', type: 'color', default: '#EF5350' },
+        ],
+    },
+
+    cmf: {
+        name: 'CMF',
+        fullName: 'Chaikin Money Flow',
+        pane: 'cmf',
+        description: 'Measures buying/selling pressure using volume-weighted money flow over a period',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 2, max: 200, default: 20 },
+        ],
+        style: [
+            { key: 'color',     label: 'Line Color', type: 'color', default: '#2196F3' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
+
+    dema: {
+        name: 'DEMA',
+        fullName: 'Double Exponential Moving Average',
+        pane: 'main',
+        description: 'Faster EMA with reduced lag: DEMA = 2×EMA − EMA(EMA)',
+        inputs: [
+            { key: 'period', label: 'Length', type: 'number', min: 2, max: 500, default: 21 },
+            { key: 'source', label: 'Source', type: 'select', options: ['close', 'open', 'high', 'low', 'hl2', 'hlc3', 'ohlc4'], default: 'close' },
+        ],
+        style: [
+            { key: 'color',     label: 'Line Color', type: 'color', default: '#FF6D00' },
+            { key: 'lineWidth', label: 'Line Width', type: 'number', min: 1, max: 5, default: 2 },
+        ],
+    },
 };
 
 

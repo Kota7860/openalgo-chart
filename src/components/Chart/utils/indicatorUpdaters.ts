@@ -33,7 +33,12 @@ import {
     calculateVWAPBands,
     detectCandlePatterns,
     calculateSqueeze,
-    calculateLinearRegression
+    calculateLinearRegression,
+    calculateAlligator,
+    calculateAroon,
+    calculateAO,
+    calculateCMF,
+    calculateDEMA
 } from '../../../utils/indicators';
 import { calculateANNStrategy } from '../../../utils/indicators/annStrategy';
 import { calculateHilengaMilenga } from '../../../utils/indicators/hilengaMilenga';
@@ -748,6 +753,76 @@ export const updateSqueezeSeries = (series: any, ind: IndicatorConfig, data: OHL
 };
 
 /**
+ * Update Williams Alligator (3 overlay SMMA lines with time offsets)
+ */
+export const updateAlligatorSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    const jawColor   = ind.jawColor   || '#2196F3';
+    const teethColor = ind.teethColor || '#EF5350';
+    const lipsColor  = ind.lipsColor  || '#4CAF50';
+    const lw = ind.lineWidth || 2;
+
+    series.jaw.applyOptions({   visible: isVisible, color: jawColor,   lineWidth: lw });
+    series.teeth.applyOptions({ visible: isVisible, color: teethColor, lineWidth: lw });
+    series.lips.applyOptions({  visible: isVisible, color: lipsColor,  lineWidth: lw });
+
+    if (!isVisible || data.length < 13) return;
+    const result = calculateAlligator(
+        data as any,
+        ind.jawPeriod   || 13, ind.jawOffset   || 8,
+        ind.teethPeriod || 8,  ind.teethOffset || 5,
+        ind.lipsPeriod  || 5,  ind.lipsOffset  || 3
+    );
+    if (result.jaw.length   > 0) series.jaw.setData(result.jaw);
+    if (result.teeth.length > 0) series.teeth.setData(result.teeth);
+    if (result.lips.length  > 0) series.lips.setData(result.lips);
+};
+
+/**
+ * Update Aroon Indicator (up + down lines in separate pane)
+ */
+export const updateAroonSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    const upColor   = ind.upColor   || '#26A69A';
+    const downColor = ind.downColor || '#EF5350';
+
+    series.up.applyOptions({   visible: isVisible, color: upColor,   lineWidth: ind.lineWidth || 2 });
+    series.down.applyOptions({ visible: isVisible, color: downColor, lineWidth: ind.lineWidth || 2 });
+
+    if (!isVisible || data.length < (ind.period || 25) + 1) return;
+    const result = calculateAroon(data as any, ind.period || 25);
+    if (result.up.length   > 0) series.up.setData(result.up);
+    if (result.down.length > 0) series.down.setData(result.down);
+};
+
+/**
+ * Update Awesome Oscillator (histogram in separate pane)
+ */
+export const updateAOSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.applyOptions({ visible: isVisible });
+    if (!isVisible || data.length < 34) return;
+    const val = calculateAO(data as any, 5, 34, ind.upColor || '#26A69A', ind.downColor || '#EF5350');
+    if (val.length > 0) series.setData(val);
+};
+
+/**
+ * Update Chaikin Money Flow (line oscillator in separate pane)
+ */
+export const updateCMFSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.applyOptions({ visible: isVisible, color: ind.color || '#2196F3', lineWidth: ind.lineWidth || 2 });
+    if (!isVisible || data.length < (ind.period || 20)) return;
+    const val = calculateCMF(data as any, ind.period || 20);
+    if (val.length > 0) series.setData(val);
+};
+
+/**
+ * Update DEMA series (overlay)
+ */
+export const updateDEMASeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
+    series.applyOptions({ visible: isVisible, color: ind.color || '#FF6D00', lineWidth: ind.lineWidth || 2 });
+    const val = calculateDEMA(data as any, ind.period || 21, ind.source || 'close');
+    if (val && val.length > 0) series.setData(val);
+};
+
+/**
  * Update Linear Regression Channel (3 overlay lines)
  */
 export const updateLinearRegressionSeries = (series: any, ind: IndicatorConfig, data: OHLCData[], isVisible: boolean): void => {
@@ -913,6 +988,26 @@ export const updateIndicatorSeries = (series: any, ind: IndicatorConfig, data: O
 
         case 'linear_regression':
             updateLinearRegressionSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'alligator':
+            updateAlligatorSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'aroon':
+            updateAroonSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'awesome_oscillator':
+            updateAOSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'cmf':
+            updateCMFSeries(series, ind, data, isVisible);
+            return [];
+
+        case 'dema':
+            updateDEMASeries(series, ind, data, isVisible);
             return [];
 
         default:

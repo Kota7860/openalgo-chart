@@ -76,6 +76,7 @@ export const IndicatorDropdown: React.FC<IndicatorDropdownProps> = ({ position, 
             <SectionHeader>Moving Averages</SectionHeader>
             <IndicatorItem id="sma" label="SMA" onClick={handleClick} />
             <IndicatorItem id="ema" label="EMA" onClick={handleClick} />
+            <IndicatorItem id="dema" label="DEMA (Double EMA)" onClick={handleClick} />
             <IndicatorItem id="hma" label="HMA (Hull)" onClick={handleClick} />
 
             <DropdownDivider />
@@ -85,7 +86,9 @@ export const IndicatorDropdown: React.FC<IndicatorDropdownProps> = ({ position, 
             <IndicatorItem id="stochastic_rsi" label="Stochastic RSI" onClick={handleClick} />
             <IndicatorItem id="cci" label="CCI" onClick={handleClick} />
             <IndicatorItem id="mfi" label="MFI" onClick={handleClick} />
+            <IndicatorItem id="cmf" label="CMF (Chaikin)" onClick={handleClick} />
             <IndicatorItem id="willr" label="Williams %R" onClick={handleClick} />
+            <IndicatorItem id="aroon" label="Aroon" onClick={handleClick} />
             <IndicatorItem id="roc" label="ROC" onClick={handleClick} />
             <IndicatorItem id="squeeze" label="Squeeze Momentum" onClick={handleClick} />
             <IndicatorItem id="hilengaMilenga" label="Hilenga-Milenga" onClick={handleClick} />
@@ -93,6 +96,7 @@ export const IndicatorDropdown: React.FC<IndicatorDropdownProps> = ({ position, 
             <DropdownDivider />
             <SectionHeader>Momentum</SectionHeader>
             <IndicatorItem id="macd" label="MACD" onClick={handleClick} />
+            <IndicatorItem id="awesome_oscillator" label="Awesome Oscillator" onClick={handleClick} />
 
             <DropdownDivider />
             <SectionHeader>Volatility</SectionHeader>
@@ -105,6 +109,7 @@ export const IndicatorDropdown: React.FC<IndicatorDropdownProps> = ({ position, 
             <SectionHeader>Trend</SectionHeader>
             <IndicatorItem id="supertrend" label="Supertrend" onClick={handleClick} />
             <IndicatorItem id="ichimoku" label="Ichimoku Cloud" onClick={handleClick} />
+            <IndicatorItem id="alligator" label="Alligator" onClick={handleClick} />
             <IndicatorItem id="psar" label="Parabolic SAR" onClick={handleClick} />
             <IndicatorItem id="zigzag" label="ZigZag" onClick={handleClick} />
             <IndicatorItem id="linear_regression" label="LR Channel" onClick={handleClick} />
