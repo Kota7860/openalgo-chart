@@ -812,6 +812,56 @@ export const createSqueezeSeries = (chart: any): { series: any; pane: any } => {
 };
 
 /**
+ * Create Williams Alligator series — 3 overlay lines (jaw, teeth, lips) on main chart
+ */
+export const createAlligatorSeries = (chart: any): any => {
+    return {
+        jaw:   chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: false }),
+        teeth: chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: false }),
+        lips:  chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: false })
+    };
+};
+
+/**
+ * Create Aroon series — up + down lines in separate pane
+ */
+export const createAroonSeries = (chart: any): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const up   = pane.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
+    const down = pane.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
+    (up as any)._ob = up.createPriceLine({ price: 70, color: '#555', lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' });
+    (up as any)._os = up.createPriceLine({ price: 30, color: '#555', lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' });
+    return { series: { up, down }, pane };
+};
+
+/**
+ * Create Awesome Oscillator series — histogram in separate pane
+ */
+export const createAOSeries = (chart: any): { series: any; pane: any } => {
+    const pane = chart.addPane({ height: 100 });
+    const hist = pane.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: true });
+    (hist as any)._zeroLine = hist.createPriceLine({ price: 0, color: '#555', lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' });
+    return { series: hist, pane };
+};
+
+/**
+ * Create CMF series — line oscillator in separate pane
+ */
+export const createCMFSeries = (chart: any): { series: any; pane: any } => {
+    const pane   = chart.addPane({ height: 100 });
+    const series = pane.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
+    (series as any)._zeroLine = series.createPriceLine({ price: 0, color: '#555', lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: '' });
+    return { series, pane };
+};
+
+/**
+ * Create DEMA series — single overlay line on main chart
+ */
+export const createDEMASeries = (chart: any): any => {
+    return chart.addSeries(LineSeries, { lineWidth: 2, priceLineVisible: false, lastValueVisible: false });
+};
+
+/**
  * Create Linear Regression Channel series — 3 overlay lines on main chart
  */
 export const createLinearRegressionSeries = (chart: any): any => {
@@ -999,6 +1049,27 @@ export const createIndicatorSeries = (chart: any, ind: IndicatorConfig, isVisibl
 
         case 'linear_regression':
             return { series: createLinearRegressionSeries(chart) };
+
+        case 'alligator':
+            return { series: createAlligatorSeries(chart) };
+
+        case 'aroon': {
+            const result = createAroonSeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'awesome_oscillator': {
+            const result = createAOSeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'cmf': {
+            const result = createCMFSeries(chart);
+            return { series: result.series, pane: result.pane };
+        }
+
+        case 'dema':
+            return { series: createDEMASeries(chart) };
 
         default:
             return null;

@@ -10,6 +10,19 @@ export * from './types';
 export { calculateSMA } from './sma';
 export { calculateEMA } from './ema';
 export { calculateHMA } from './hma';
+export { calculateDEMA } from './dema';
+
+// Bill Williams
+export { calculateAlligator } from './alligator';
+export type { AlligatorResult } from './alligator';
+export { calculateAO } from './awesomeOscillator';
+
+// Aroon
+export { calculateAroon } from './aroon';
+export type { AroonResult } from './aroon';
+
+// Chaikin Money Flow
+export { calculateCMF } from './cmf';
 
 // Linear Regression Channel
 export { calculateLinearRegression } from './linearRegression';

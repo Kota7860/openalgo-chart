@@ -64,6 +64,7 @@ export const STORAGE_KEYS = {
   // AI Analysis
   CLAUDE_API_KEY: 'claude_api_key',
   CLAUDE_MODEL: 'claude_model',
+  CLAUDE_AI_CHAT: 'claude_ai_chat',
 
   // SMC Settings
   SMC_SETTINGS: 'tv_smc_settings',

@@ -215,6 +215,11 @@ const buildCommands = (handlers: CommandPaletteHandlers): Command[] => {
     { id: 'keltner', title: 'Keltner Channel', description: 'Keltner Channel', keywords: ['keltner', 'channel', 'atr'] },
     { id: 'rsi_divergence', title: 'RSI Divergence', description: 'RSI Divergence Detection', keywords: ['rsi', 'divergence', 'hidden'] },
     { id: 'prev_day_ohlc', title: 'Prev Day OHLC', description: 'Previous Day Levels', keywords: ['previous', 'day', 'pdh', 'pdl', 'pdc'] },
+    { id: 'alligator', title: 'Alligator', description: 'Williams Alligator (Jaw/Teeth/Lips)', keywords: ['alligator', 'williams', 'jaw', 'teeth', 'lips', 'smma'] },
+    { id: 'aroon', title: 'Aroon', description: 'Aroon Up/Down Indicator', keywords: ['aroon', 'up', 'down', 'trend'] },
+    { id: 'awesome_oscillator', title: 'Awesome Oscillator', description: 'Bill Williams AO', keywords: ['awesome', 'oscillator', 'ao', 'williams', 'histogram'] },
+    { id: 'cmf', title: 'CMF', description: 'Chaikin Money Flow', keywords: ['chaikin', 'money', 'flow', 'cmf', 'volume'] },
+    { id: 'dema', title: 'DEMA', description: 'Double Exponential Moving Average', keywords: ['dema', 'double', 'ema', 'moving', 'average'] },
   ];
 
   indicators.forEach((indicator) => {

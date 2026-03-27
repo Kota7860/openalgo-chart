@@ -63,7 +63,12 @@ export type IndicatorType =
   | 'vwap_bands'
   | 'candle_patterns'
   | 'squeeze'
-  | 'linear_regression';
+  | 'linear_regression'
+  | 'alligator'
+  | 'aroon'
+  | 'awesome_oscillator'
+  | 'cmf'
+  | 'dema';
 
 /** Base indicator configuration */
 export interface IndicatorConfig {
