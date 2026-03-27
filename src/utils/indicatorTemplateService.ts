@@ -16,7 +16,7 @@ export interface IndicatorPreset {
 
 const load = (): IndicatorPreset[] => {
     try {
-        return getJSON<IndicatorPreset[]>(STORAGE_KEY) ?? [];
+        return getJSON<IndicatorPreset[]>(STORAGE_KEY, []) ?? [];
     } catch {
         return [];
     }
