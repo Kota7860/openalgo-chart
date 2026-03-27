@@ -5,10 +5,10 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Sparkles, RefreshCw, AlertTriangle, History, BarChart2 } from 'lucide-react';
+import { Sparkles, RefreshCw, AlertTriangle, History, BarChart2, MessageSquare, Send } from 'lucide-react';
 import styles from './AIAnalysisPanel.module.css';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
-import { runAIAnalysis, AIAnalysisResult } from '../../services/aiAnalysisService';
+import { runAIAnalysis, AIAnalysisResult, runAIChat, buildChartContext, ChatMessage } from '../../services/aiAnalysisService';
 import { SMCAnalysisResult } from '../../services/smcDetectionService';
 import type { SMCOverlayData, SMCOverlayOptions, SMCOverlayColors, DEFAULT_SMC_COLORS } from '../../plugins/smc-overlays/SMCOverlayPrimitive';
 
@@ -58,7 +58,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
   onOverlayDataReady,
 }) => {
   type Status = 'idle' | 'detecting' | 'analyzing' | 'done' | 'error';
-  type Tab = 'results' | 'history';
+  type Tab = 'results' | 'history' | 'chat';
 
   const [status, setStatus]             = useState<Status>('idle');
   const [result, setResult]             = useState<AIAnalysisResult | null>(null);
@@ -70,6 +70,14 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
   const [activeTab, setActiveTab]         = useState<Tab>('results');
   const [history, setHistory]             = useState<AnalysisHistoryEntry[]>([]);
   const isRunningRef = useRef(false);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput]       = useState('');
+  const [chatStreaming, setChatStreaming] = useState(false);
+  const [chatStreamBuf, setChatStreamBuf] = useState('');
+  const chatAbortRef  = useRef<AbortController | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
   const [overlayOpts, setOverlayOpts] = useState<SMCOverlayOptions>(() => ({
     showOrderBlocks: true,
@@ -183,6 +191,58 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
     }
   }, [symbol, exchange, interval, chartRef, onOverlayDataReady]);
 
+  // ── Chat ──────────────────────────────────────────────────────────────────
+
+  const handleChatSend = useCallback(async (text?: string) => {
+    const msg = (text ?? chatInput).trim();
+    if (!msg || chatStreaming) return;
+
+    const apiKey = localStorage.getItem(STORAGE_KEYS.CLAUDE_API_KEY);
+    if (!apiKey) { setApiKeyMissing(true); return; }
+
+    const candles = chartRef.current?.getData?.() ?? [];
+    const ctx = buildChartContext(candles, smcData, result, symbol, exchange, interval);
+
+    const userMsg: ChatMessage = { role: 'user', content: msg };
+    const nextMessages: ChatMessage[] = [...chatMessages, userMsg];
+    setChatMessages(nextMessages);
+    setChatInput('');
+    setChatStreaming(true);
+    setChatStreamBuf('');
+
+    const abort = new AbortController();
+    chatAbortRef.current = abort;
+
+    let accumulated = '';
+    const { error: chatErr } = await runAIChat(
+      nextMessages,
+      ctx,
+      (delta) => {
+        accumulated += delta;
+        setChatStreamBuf(accumulated);
+        // Auto-scroll
+        if (chatScrollRef.current) {
+          chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+        }
+      },
+      abort.signal
+    );
+
+    setChatStreaming(false);
+    setChatStreamBuf('');
+    if (!chatErr && accumulated) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: accumulated }]);
+    } else if (chatErr && chatErr !== 'NO_API_KEY') {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `⚠️ ${chatErr}` }]);
+    }
+  }, [chatInput, chatMessages, chatStreaming, smcData, result, symbol, exchange, interval, chartRef]);
+
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, chatStreamBuf]);
+
   // ── Overlay toggle ────────────────────────────────────────────────────────
 
   const toggleOverlay = useCallback((key: keyof SMCOverlayOptions) => {
@@ -265,6 +325,13 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
             <History size={11} style={{ display: 'inline', marginRight: 3 }} />
             History ({history.length})
           </button>
+          <button
+            className={`${styles.tab} ${activeTab === 'chat' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('chat')}
+          >
+            <MessageSquare size={11} style={{ display: 'inline', marginRight: 3 }} />
+            Chat
+          </button>
         </div>
       )}
 
@@ -309,6 +376,62 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
               ))
             )}
           </>
+        )}
+
+        {/* Chat tab */}
+        {activeTab === 'chat' && (
+          <div className={styles.chatContainer}>
+            {/* Quick presets */}
+            <div className={styles.chatPresets}>
+              {['Best entry now?', 'Key invalidation?', 'Risk/reward outlook?', 'Explain the trend'].map(q => (
+                <button key={q} className={styles.chatPresetBtn} onClick={() => handleChatSend(q)} disabled={chatStreaming}>
+                  {q}
+                </button>
+              ))}
+            </div>
+            {/* Messages */}
+            <div className={styles.chatMessages} ref={chatScrollRef}>
+              {chatMessages.length === 0 && !chatStreaming && (
+                <p className={styles.chatEmptyHint}>Ask anything about {symbol} — entry, levels, patterns, risk…</p>
+              )}
+              {chatMessages.map((m, i) => (
+                <div key={i} className={m.role === 'user' ? styles.chatMsgUser : styles.chatMsgAI}>
+                  {m.content}
+                </div>
+              ))}
+              {chatStreaming && chatStreamBuf && (
+                <div className={styles.chatMsgAI}>
+                  {chatStreamBuf}
+                  <span className={styles.chatCursor} />
+                </div>
+              )}
+              {chatStreaming && !chatStreamBuf && (
+                <div className={styles.chatMsgAI}>
+                  <span className={styles.chatThinking}>Thinking…</span>
+                </div>
+              )}
+            </div>
+            {/* Input */}
+            <div className={styles.chatInputRow}>
+              <input
+                className={styles.chatInput}
+                type="text"
+                placeholder="Ask about this chart…"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                disabled={chatStreaming}
+              />
+              <button
+                className={styles.chatSendBtn}
+                onClick={() => handleChatSend()}
+                disabled={chatStreaming || !chatInput.trim()}
+                title="Send"
+              >
+                <Send size={13} />
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Results tab */}

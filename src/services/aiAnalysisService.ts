@@ -10,6 +10,8 @@ import {
   calculateBollingerBands,
   calculateATR,
   calculateEMA,
+  calculateStochastic,
+  calculateADX,
 } from '../utils/indicators';
 import {
   OHLCCandle,
@@ -88,6 +90,11 @@ interface IndicatorSnapshot {
   ema20: number | null;
   ema50: number | null;
   atr: number | null;
+  stochK: number | null;
+  stochD: number | null;
+  adxValue: number | null;
+  adxTrend: string;
+  volumeTrend: 'rising' | 'falling' | 'neutral';
 }
 
 function buildIndicatorSnapshot(candles: OHLCCandle[]): IndicatorSnapshot {
@@ -107,6 +114,30 @@ function buildIndicatorSnapshot(candles: OHLCCandle[]): IndicatorSnapshot {
   const ema50Arr   = calculateEMA(candles as any, 50);
   const atrArr     = calculateATR(candles as any, 14);
 
+  const stochResult = calculateStochastic(candles as any, 14, 3, 3);
+  const stochK = last(stochResult.kLine);
+  const stochD = last(stochResult.dLine);
+
+  const adxResult = calculateADX(candles as any, 14);
+  const adxValue = last(adxResult.adx);
+  const plusDI   = last(adxResult.plusDI);
+  const minusDI  = last(adxResult.minusDI);
+  const adxTrend =
+    adxValue === null ? 'unknown'
+    : adxValue < 20 ? 'weak/ranging'
+    : adxValue < 40 ? (plusDI !== null && minusDI !== null && plusDI > minusDI ? 'trending up' : 'trending down')
+    : (plusDI !== null && minusDI !== null && plusDI > minusDI ? 'strong uptrend' : 'strong downtrend');
+
+  // Volume trend: average of last 5 vs prior 5 bars
+  const recentVols = candles.slice(-10).map(c => c.volume ?? 0);
+  const avgRecent = recentVols.slice(5).reduce((a, b) => a + b, 0) / 5;
+  const avgPrior  = recentVols.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
+  const volumeTrend: 'rising' | 'falling' | 'neutral' =
+    avgPrior === 0 ? 'neutral'
+    : avgRecent > avgPrior * 1.15 ? 'rising'
+    : avgRecent < avgPrior * 0.85 ? 'falling'
+    : 'neutral';
+
   return {
     rsi: rsiVal,
     rsiLabel,
@@ -119,6 +150,11 @@ function buildIndicatorSnapshot(candles: OHLCCandle[]): IndicatorSnapshot {
     ema20:         last(ema20Arr),
     ema50:         last(ema50Arr),
     atr:           last(atrArr),
+    stochK,
+    stochD,
+    adxValue,
+    adxTrend,
+    volumeTrend,
   };
 }
 
@@ -267,10 +303,13 @@ ${candleRows}
 
 --- INDICATOR VALUES ---
 RSI(14): ${n(indicators.rsi)} | ${indicators.rsiLabel}
+Stochastic(14,3,3): K=${n(indicators.stochK)} D=${n(indicators.stochD)}
 MACD: Line=${n(indicators.macdLine, 4)}, Signal=${n(indicators.macdSignal, 4)}, Histogram=${n(indicators.macdHistogram, 4)}
+ADX(14): ${n(indicators.adxValue)} | ${indicators.adxTrend}
 EMA20: ${n(indicators.ema20)} | EMA50: ${n(indicators.ema50)} | Price vs EMAs: ${emaStatus}
 BB: Upper=${n(indicators.bbUpper)}, Middle=${n(indicators.bbMiddle)}, Lower=${n(indicators.bbLower)}
 ATR(14): ${n(indicators.atr)}
+Volume trend (last 5 vs prior 5 bars): ${indicators.volumeTrend}
 
 --- SMC/ICT STRUCTURES DETECTED ---
 Trend: ${smcData.currentTrend}
@@ -435,5 +474,128 @@ export async function runAIAnalysis(
       ? 'AI returned an unexpected response. Try again.'
       : `Network error: ${err?.message ?? 'Unknown error'}`;
     return { result: null, error: msg, smcData, confluenceScore };
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// AI Chat with Streaming
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+const CHAT_SYSTEM_PROMPT = `You are an expert trading analyst specializing in SMC (Smart Money Concepts) and ICT methodology. You have access to live chart context provided below. Answer concisely and practically — focus on actionable insights. Keep responses under 180 words unless more detail is specifically requested. Do not repeat the question back.`;
+
+/**
+ * Build a compact chart context string for the chat system prompt.
+ * Pulls current indicator snapshot + SMC summary + last analysis result.
+ */
+export function buildChartContext(
+  candles: OHLCCandle[],
+  smcData: SMCAnalysisResult | null,
+  analysisResult: AIAnalysisResult | null,
+  symbol: string,
+  exchange: string,
+  interval: string
+): string {
+  const last = candles[candles.length - 1];
+  const ind  = buildIndicatorSnapshot(candles);
+  const n2   = (v: number | null) => v == null ? 'N/A' : v.toFixed(2);
+
+  let ctx = `SYMBOL: ${symbol}/${exchange} | TF: ${interval} | PRICE: ${n2(last?.close ?? null)}\n`;
+  ctx += `RSI(14): ${n2(ind.rsi)} (${ind.rsiLabel}) | Stoch K/D: ${n2(ind.stochK)}/${n2(ind.stochD)}\n`;
+  ctx += `MACD hist: ${ind.macdHistogram == null ? 'N/A' : ind.macdHistogram.toFixed(4)} | ADX: ${n2(ind.adxValue)} (${ind.adxTrend})\n`;
+  ctx += `EMA20: ${n2(ind.ema20)} | EMA50: ${n2(ind.ema50)} | ATR: ${n2(ind.atr)} | Volume: ${ind.volumeTrend}\n`;
+
+  if (smcData) {
+    ctx += `TREND: ${smcData.currentTrend} | Kill Zone: ${smcData.killZone ?? 'none'}\n`;
+    const ob = smcData.orderBlocks[0];
+    if (ob) ctx += `Top OB: ${ob.type} ${ob.low.toFixed(2)}-${ob.high.toFixed(2)}\n`;
+  }
+
+  if (analysisResult) {
+    ctx += `AI BIAS: ${analysisResult.bias} (confidence ${analysisResult.confidence}/10)\n`;
+    ctx += `SETUP: ${analysisResult.tradeSetup.direction.toUpperCase()}`;
+    if (analysisResult.tradeSetup.stopLoss) ctx += ` | SL: ${analysisResult.tradeSetup.stopLoss.toFixed(2)}`;
+    if (analysisResult.tradeSetup.targets?.length) ctx += ` | TP: ${analysisResult.tradeSetup.targets.map(t => t.toFixed(2)).join('/')}`;
+    ctx += `\nSUMMARY: ${analysisResult.summary}`;
+  }
+
+  return ctx;
+}
+
+/**
+ * Stream a chat response from Claude.
+ * Calls onChunk for each text delta; resolves when stream is complete.
+ */
+export async function runAIChat(
+  messages: ChatMessage[],
+  chartContext: string,
+  onChunk: (delta: string) => void,
+  signal?: AbortSignal
+): Promise<{ error: string | null }> {
+  const apiKey = getApiKey();
+  if (!apiKey) return { error: 'NO_API_KEY' };
+
+  const systemPrompt = `${CHAT_SYSTEM_PROMPT}\n\nCURRENT CHART CONTEXT:\n${chartContext}`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: getModel(),
+        max_tokens: 512,
+        system: systemPrompt,
+        stream: true,
+        messages,
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      const errorMap: Record<number, string> = {
+        401: 'Invalid API key.',
+        429: 'Rate limit — wait a moment and try again.',
+        500: 'Claude API server error.',
+      };
+      return { error: errorMap[response.status] ?? `API error (${response.status})` };
+    }
+
+    const reader = response.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+            onChunk(parsed.delta.text);
+          }
+        } catch { /* ignore malformed SSE lines */ }
+      }
+    }
+
+    return { error: null };
+
+  } catch (err: any) {
+    if (err?.name === 'AbortError') return { error: null };
+    return { error: `Network error: ${err?.message ?? 'Unknown'}` };
   }
 }
