@@ -1,16 +1,22 @@
 /**
  * AI Analysis Panel
  * Displays SMC/ICT analysis powered by Claude AI.
- * Follows the same right-panel pattern as ANNScanner.
+ * Features: streaming response, follow-up chat, analysis history.
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Sparkles, RefreshCw, AlertTriangle, History, BarChart2 } from 'lucide-react';
+import { Sparkles, RefreshCw, AlertTriangle, History, BarChart2, Send } from 'lucide-react';
 import styles from './AIAnalysisPanel.module.css';
 import { STORAGE_KEYS } from '../../constants/storageKeys';
-import { runAIAnalysis, AIAnalysisResult } from '../../services/aiAnalysisService';
+import {
+  runAIAnalysisStream,
+  runAIChat,
+  AIAnalysisResult,
+  AIAnalysisResponse,
+  ChatMessage,
+} from '../../services/aiAnalysisService';
 import { SMCAnalysisResult } from '../../services/smcDetectionService';
-import type { SMCOverlayData, SMCOverlayOptions, SMCOverlayColors, DEFAULT_SMC_COLORS } from '../../plugins/smc-overlays/SMCOverlayPrimitive';
+import type { SMCOverlayData, SMCOverlayOptions, SMCOverlayColors } from '../../plugins/smc-overlays/SMCOverlayPrimitive';
 
 function loadStoredColors(): SMCOverlayColors | undefined {
   try {
@@ -60,16 +66,31 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
   type Status = 'idle' | 'detecting' | 'analyzing' | 'done' | 'error';
   type Tab = 'results' | 'history';
 
-  const [status, setStatus]             = useState<Status>('idle');
-  const [result, setResult]             = useState<AIAnalysisResult | null>(null);
-  const [smcData, setSmcData]           = useState<SMCAnalysisResult | null>(null);
-  const [error, setError]               = useState<string | null>(null);
+  const [status, setStatus]               = useState<Status>('idle');
+  const [result, setResult]               = useState<AIAnalysisResult | null>(null);
+  const [smcData, setSmcData]             = useState<SMCAnalysisResult | null>(null);
+  const [error, setError]                 = useState<string | null>(null);
   const [apiKeyMissing, setApiKeyMissing] = useState(false);
   const [lastAnalyzed, setLastAnalyzed]   = useState<string | null>(null);
   const [confluenceScore, setConfluenceScore] = useState<number>(0);
   const [activeTab, setActiveTab]         = useState<Tab>('results');
   const [history, setHistory]             = useState<AnalysisHistoryEntry[]>([]);
   const isRunningRef = useRef(false);
+  const abortRef     = useRef<AbortController | null>(null);
+
+  // Streaming state
+  const [streamingText, setStreamingText]   = useState('');
+  const [isStreaming, setIsStreaming]       = useState(false);
+
+  // Chat state
+  const [chatMessages, setChatMessages]       = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput]             = useState('');
+  const [isChatStreaming, setIsChatStreaming] = useState(false);
+  const [chatStreamText, setChatStreamText]   = useState('');
+  const chatStreamRef  = useRef('');   // reliable accumulator (avoids stale closure)
+  const chatInputRef   = useRef<HTMLInputElement>(null);
+  const chatScrollRef  = useRef<HTMLDivElement>(null);
+  const chatAbortRef   = useRef<AbortController | null>(null);
 
   const [overlayOpts, setOverlayOpts] = useState<SMCOverlayOptions>(() => ({
     showOrderBlocks: true,
@@ -85,53 +106,42 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
 
   const [statusMsg, setStatusMsg] = useState('');
 
-  // Load history when symbol/exchange changes
+  // ── Load history + chat per symbol ────────────────────────────────────────
+
   useEffect(() => {
-    const key = `claude_ai_history_${exchange}_${symbol}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try { setHistory(JSON.parse(stored)); } catch { setHistory([]); }
-    } else {
-      setHistory([]);
-    }
+    const histKey  = `claude_ai_history_${exchange}_${symbol}`;
+    const chatKey  = `${STORAGE_KEYS.CLAUDE_AI_CHAT}_${exchange}_${symbol}`;
+    try { setHistory(JSON.parse(localStorage.getItem(histKey) ?? '[]')); } catch { setHistory([]); }
+    try { setChatMessages(JSON.parse(localStorage.getItem(chatKey) ?? '[]')); } catch { setChatMessages([]); }
   }, [symbol, exchange]);
 
-  // ── Run Analysis ──────────────────────────────────────────────────────────
+  // Persist chat whenever it changes
+  useEffect(() => {
+    const chatKey = `${STORAGE_KEYS.CLAUDE_AI_CHAT}_${exchange}_${symbol}`;
+    localStorage.setItem(chatKey, JSON.stringify(chatMessages.slice(-30)));
+  }, [chatMessages, symbol, exchange]);
 
-  const handleRunAnalysis = useCallback(async () => {
-    if (isRunningRef.current) return;
-
-    const apiKey = localStorage.getItem(STORAGE_KEYS.CLAUDE_API_KEY);
-    if (!apiKey) { setApiKeyMissing(true); return; }
-    setApiKeyMissing(false);
-
-    const candles = chartRef.current?.getData?.();
-    if (!candles || candles.length < 100) {
-      setStatus('error');
-      setError('Not enough chart data. Load at least 100 candles.');
-      return;
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
     }
+  }, [chatMessages, chatStreamText]);
 
-    isRunningRef.current = true;
-    setStatus('detecting');
-    setError(null);
-    setStatusMsg('Running SMC detection...');
+  // Abort streams on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      chatAbortRef.current?.abort();
+    };
+  }, []);
 
-    // Allow React to paint the loading state
-    await new Promise(r => setTimeout(r, 16));
+  // ── Handle completed analysis response ────────────────────────────────────
 
-    setStatus('analyzing');
-    setStatusMsg('Consulting Claude AI...');
-
-    const smcOpts = loadSMCOptions();
-    const response = await runAIAnalysis(
-      { candles, symbol, exchange, interval, smcOptions: smcOpts },
-      (msg) => setStatusMsg(msg)
-    );
-
+  const handleAnalysisResponse = useCallback((response: AIAnalysisResponse) => {
     isRunningRef.current = false;
+    setIsStreaming(false);
 
-    // Always push SMC overlays to chart (even if Claude call fails)
     if (response.smcData) {
       setSmcData(response.smcData);
       setConfluenceScore(response.confluenceScore);
@@ -148,6 +158,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
         };
         chartRef.current.setSMCOverlayData(overlayData);
       }
+      onOverlayDataReady(response.smcData);
     }
 
     if (response.error) {
@@ -165,7 +176,6 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
       setLastAnalyzed(ts);
       setActiveTab('results');
 
-      // Save to history
       const entry: AnalysisHistoryEntry = {
         timestamp: new Date().toLocaleString(),
         bias: response.result.bias,
@@ -173,15 +183,66 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
         confluenceScore: response.confluenceScore,
         summary: response.result.summary,
       };
-      const historyKey = `claude_ai_history_${exchange}_${symbol}`;
+      const histKey = `claude_ai_history_${exchange}_${symbol}`;
       const prev: AnalysisHistoryEntry[] = (() => {
-        try { return JSON.parse(localStorage.getItem(historyKey) ?? '[]'); } catch { return []; }
+        try { return JSON.parse(localStorage.getItem(histKey) ?? '[]'); } catch { return []; }
       })();
       const updated = [entry, ...prev].slice(0, 10);
-      localStorage.setItem(historyKey, JSON.stringify(updated));
+      localStorage.setItem(histKey, JSON.stringify(updated));
       setHistory(updated);
     }
-  }, [symbol, exchange, interval, chartRef, onOverlayDataReady]);
+  }, [chartRef, onOverlayDataReady, exchange, symbol]);
+
+  // ── Run Analysis ──────────────────────────────────────────────────────────
+
+  const handleRunAnalysis = useCallback(async () => {
+    if (isRunningRef.current) return;
+
+    const apiKey = localStorage.getItem(STORAGE_KEYS.CLAUDE_API_KEY);
+    if (!apiKey) { setApiKeyMissing(true); return; }
+    setApiKeyMissing(false);
+
+    const candles = chartRef.current?.getData?.();
+    if (!candles || candles.length < 100) {
+      setStatus('error');
+      setError('Not enough chart data. Load at least 100 candles.');
+      return;
+    }
+
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+
+    isRunningRef.current = true;
+    setStatus('analyzing');
+    setError(null);
+    setStreamingText('');
+    setIsStreaming(true);
+    setStatusMsg('Running SMC detection...');
+
+    await new Promise(r => setTimeout(r, 16));
+
+    const smcOpts = loadSMCOptions();
+    await runAIAnalysisStream(
+      { candles, symbol, exchange, interval, smcOptions: smcOpts },
+      {
+        onToken: (token) => setStreamingText(prev => prev + token),
+        onProgress: (msg) => setStatusMsg(msg),
+        onComplete: handleAnalysisResponse,
+        onError: (errMsg) => {
+          isRunningRef.current = false;
+          setIsStreaming(false);
+          if (errMsg === 'NO_API_KEY') {
+            setApiKeyMissing(true);
+            setStatus('idle');
+          } else {
+            setStatus('error');
+            setError(errMsg);
+          }
+        },
+      },
+      abortRef.current.signal
+    );
+  }, [symbol, exchange, interval, chartRef, handleAnalysisResponse]);
 
   // ── Overlay toggle ────────────────────────────────────────────────────────
 
@@ -194,6 +255,84 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
       return updated;
     });
   }, [chartRef]);
+
+  // ── Chat ──────────────────────────────────────────────────────────────────
+
+  const handleSendChat = useCallback(async () => {
+    if (!chatInput.trim() || isChatStreaming || !result || !smcData) return;
+
+    const userMsg: ChatMessage = {
+      role: 'user',
+      content: chatInput.trim(),
+      timestamp: new Date().toISOString(),
+    };
+    const updatedHistory = [...chatMessages, userMsg];
+    setChatMessages(updatedHistory);
+    setChatInput('');
+    setIsChatStreaming(true);
+    setChatStreamText('');
+    chatStreamRef.current = '';
+
+    chatAbortRef.current?.abort();
+    chatAbortRef.current = new AbortController();
+
+    const candles = chartRef.current?.getData?.() ?? [];
+    const currentPrice = candles[candles.length - 1]?.close ?? 0;
+
+    await runAIChat(
+      {
+        question: userMsg.content,
+        conversationHistory: updatedHistory.slice(-10),
+        analysisContext: {
+          originalAnalysis: result,
+          symbol,
+          exchange,
+          interval,
+          confluenceScore,
+          currentPrice,
+        },
+        smcData,
+      },
+      {
+        onToken: (token) => {
+          chatStreamRef.current += token;
+          setChatStreamText(prev => prev + token);
+        },
+        onComplete: () => {
+          const assistantMsg: ChatMessage = {
+            role: 'assistant',
+            content: chatStreamRef.current,
+            timestamp: new Date().toISOString(),
+          };
+          setChatMessages(prev => [...prev, assistantMsg]);
+          setChatStreamText('');
+          chatStreamRef.current = '';
+          setIsChatStreaming(false);
+        },
+        onError: (err) => {
+          setChatStreamText('');
+          chatStreamRef.current = '';
+          setIsChatStreaming(false);
+          // Show brief inline error as assistant message
+          if (err !== 'NO_API_KEY') {
+            setChatMessages(prev => [...prev, {
+              role: 'assistant',
+              content: `Error: ${err}`,
+              timestamp: new Date().toISOString(),
+            }]);
+          }
+        },
+      },
+      chatAbortRef.current.signal
+    );
+  }, [chatInput, chatMessages, isChatStreaming, result, smcData, symbol, exchange, interval, confluenceScore, chartRef]);
+
+  const handleChatKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendChat();
+    }
+  }, [handleSendChat]);
 
   // ── Render helpers ────────────────────────────────────────────────────────
 
@@ -212,7 +351,6 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
 
   const isLoading = status === 'detecting' || status === 'analyzing';
 
-  // Confluence score color
   const confluenceColor =
     confluenceScore >= 70 ? '#26a69a'
     : confluenceScore >= 40 ? '#ff9800'
@@ -239,7 +377,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
               {lastAnalyzed}
             </span>
           )}
-          {(status === 'done' || status === 'error') && !isLoading && (
+          {(status === 'done' || status === 'error') && !isLoading && !isStreaming && (
             <button className={styles.reanalyzeBtn} onClick={handleRunAnalysis} disabled={isRunningRef.current}>
               <RefreshCw size={11} style={{ display: 'inline', marginRight: 3 }} />
               Re-analyze
@@ -315,7 +453,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
         {activeTab === 'results' && (
           <>
             {/* Idle */}
-            {status === 'idle' && (
+            {status === 'idle' && !isStreaming && (
               <>
                 <button className={styles.runBtn} onClick={handleRunAnalysis}>
                   <Sparkles size={14} />
@@ -327,16 +465,22 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
               </>
             )}
 
-            {/* Loading */}
-            {isLoading && (
-              <div className={styles.loading}>
-                <div className={styles.spinner} />
-                <span>{statusMsg}</span>
+            {/* Streaming */}
+            {isStreaming && (
+              <div className={styles.streamingContainer}>
+                <div className={styles.streamingHeader}>
+                  <div className={styles.streamingDot} />
+                  <span>{statusMsg || 'Claude is analyzing...'}</span>
+                </div>
+                <div className={styles.streamingText}>
+                  {streamingText}
+                  {streamingText.length === 0 && <span className={styles.streamingCursor} />}
+                </div>
               </div>
             )}
 
             {/* Error */}
-            {status === 'error' && (
+            {status === 'error' && !isStreaming && (
               <>
                 <div className={styles.error}>{error}</div>
                 <button className={styles.runBtn} onClick={handleRunAnalysis} style={{ marginTop: 8 }}>
@@ -346,7 +490,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
             )}
 
             {/* Results */}
-            {status === 'done' && result && (
+            {status === 'done' && result && !isStreaming && (
               <>
                 {/* Bias + Confidence + Confluence Score */}
                 <div className={styles.card}>
@@ -514,6 +658,72 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
                   <div className={styles.cardTitle}>Summary</div>
                   <p className={styles.summary}>{result.summary}</p>
                 </div>
+
+                {/* Chat follow-up */}
+                <div className={styles.chatSection}>
+                  <div className={styles.cardTitle}>Follow-up Questions</div>
+
+                  {chatMessages.length > 0 && (
+                    <div className={styles.chatThread} ref={chatScrollRef}>
+                      {chatMessages.map((msg, i) => (
+                        <div
+                          key={i}
+                          className={msg.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAssistant}
+                        >
+                          {msg.content}
+                        </div>
+                      ))}
+                      {isChatStreaming && (
+                        <div className={styles.chatBubbleAssistant}>
+                          {chatStreamText || <span className={styles.streamingCursor} />}
+                          {chatStreamText && <span className={styles.streamingCursor} />}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Empty state when no messages yet and streaming starts */}
+                  {chatMessages.length === 0 && isChatStreaming && (
+                    <div className={styles.chatThread} ref={chatScrollRef}>
+                      <div className={styles.chatBubbleAssistant}>
+                        {chatStreamText || <span className={styles.streamingCursor} />}
+                        {chatStreamText && <span className={styles.streamingCursor} />}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={styles.chatInputRow}>
+                    <input
+                      ref={chatInputRef}
+                      className={styles.chatInput}
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={handleChatKeyDown}
+                      placeholder="Ask a follow-up question..."
+                      disabled={isChatStreaming}
+                    />
+                    <button
+                      className={styles.chatSendBtn}
+                      onClick={handleSendChat}
+                      disabled={isChatStreaming || !chatInput.trim()}
+                    >
+                      <Send size={12} />
+                    </button>
+                  </div>
+
+                  {chatMessages.length > 0 && (
+                    <button
+                      className={styles.clearChatBtn}
+                      onClick={() => {
+                        setChatMessages([]);
+                        const chatKey = `${STORAGE_KEYS.CLAUDE_AI_CHAT}_${exchange}_${symbol}`;
+                        localStorage.removeItem(chatKey);
+                      }}
+                    >
+                      Clear chat
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </>
@@ -540,7 +750,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
                 <label className={styles.toggle}>
                   <input
                     type="checkbox"
-                    checked={overlayOpts[key]}
+                    checked={overlayOpts[key] as boolean}
                     onChange={() => toggleOverlay(key)}
                   />
                   <span className={styles.toggleSlider} />
